@@ -85,11 +85,11 @@ function Steps() {
   );
 }
 
-export function HomeDesktop({ onPick }) {
+export function HomeDesktop({ onPick, onJoin }) {
   return (
     <div className="relative flex min-h-dvh flex-col">
       <Blobs color="magenta" />
-      <TopBar left={<span />} right={<Menu />} />
+      <TopBar left={<button type="button" onClick={onJoin} className="press rounded-full border-2 border-white/20 px-4 py-2 font-display font-black">{T.joinAParty}</button>} right={<Menu />} />
       <div className="relative z-10 flex flex-1 flex-col items-center gap-6 px-6 pb-8">
         <Logo size="lg" />
         <h1 className="text-stroke font-display font-black text-6xl">{T.pickGameTitle}</h1>

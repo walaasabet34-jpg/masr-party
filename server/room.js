@@ -214,7 +214,7 @@ export class Room {
   }
 
   pickNext() {
-    const n = this.active().length;
+    const n = Math.max(2, this.active().filter((p) => p.connected).length);
     const enabled = this.enabledIds().map(getGame);
     let pool = enabled.filter((g) => g.minPlayers <= n);
     this.fallbackNote = null;
@@ -286,6 +286,7 @@ export class Room {
 
   advanceFromBriefing(now) {
     if (this.isFinal()) return this.endNight();
+    if (this.active().filter((p) => p.connected).length < 2) return;
     this.phase = 'intro';
     this.phaseEndsAt = now + INTRO_MS;
     this.game = null;
@@ -295,6 +296,11 @@ export class Room {
   startGame(now) {
     const g = getGame(this.nextGameId);
     const roster = this.active().filter((p) => p.connected || !p.awaySince || now - p.awaySince < 20000);
+    if (roster.length < g.minPlayers) {
+      this.enterBriefing(now);
+      if (this.active().filter((p) => p.connected).length >= 2) this.pickNext();
+      return;
+    }
     const players = roster.map((p) => ({ id: p.id, name: p.name }));
     const ctx = { rng, players, mode: this.settings.mode, seen: this.seen, now };
     this.game = { id: g.id, roster: players, state: g.setup(ctx), startedAt: now };
@@ -391,9 +397,9 @@ export class Room {
     };
     this.history.push({ round: this.round, gameId: g.id, headline: res.headline });
     this.game = null;
+    this.enterBriefing(now);
     if (!this.isFinal()) this.pickNext();
     else this.nextGameId = null;
-    this.enterBriefing(now);
   }
 
   skipRound(by, now) {

@@ -418,6 +418,7 @@ function LobbyPhone({ snap }) {
           </h3>
           <Seats snap={snap} />
           <div className="mt-5">
+            <p className="mb-3 text-center text-sm text-ink-muted">{T.twoPlayersHint} {T.duoGamesHint}</p>
             <SettingsPanel snap={snap} />
           </div>
           <div className="dock-bottom mt-auto pt-5">
@@ -774,7 +775,7 @@ function PlayPhone({ snap }) {
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
         <div className="text-6xl">👀</div>
         <div className="font-display font-black text-2xl">{T.watchBigScreen}</div>
-        <div className="text-ink-muted">هتدخل من الجولة اللي جاية.</div>
+        <div className="text-ink-muted">هتدخل من الجولة اللي جاية. تقدر تستخدم الشات دلوقتي.</div>
       </div>
     );
   return <div className="flex flex-1 flex-col px-4 pb-4">{UI?.Phone ? <UI.Phone snap={snap} v={snap.game} /> : null}</div>;

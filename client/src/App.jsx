@@ -67,7 +67,7 @@ export default function App() {
 
   switch (route.name) {
     case 'setup':
-      return <SetupDesktop game={route.game} onBack={() => go('home')} />;
+      return <SetupDesktop game={route.game} onBack={() => go('home')} onHostPlay={(mode) => go('profile', { purpose: 'host', game: route.game, mode })} />;
     case 'pick':
       return <PickGamePhone onBack={() => go('home')} onPick={pickGame} />;
     case 'vibe':
@@ -82,7 +82,7 @@ export default function App() {
           title={route.purpose === 'host' ? T.youHostTitle : T.youTitle}
           room={route.purpose === 'join' ? route.room : null}
           busy={busy}
-          onBack={() => go(route.purpose === 'host' ? (route.game === 'boat' ? 'boatSetup' : 'vibe') : 'join')}
+          onBack={() => go(route.purpose === 'host' ? (big ? 'setup' : route.game === 'boat' ? 'boatSetup' : 'vibe') : 'join')}
           onDone={async () => {
             setBusy(true);
             try {
@@ -97,6 +97,6 @@ export default function App() {
         />
       );
     default:
-      return big ? <HomeDesktop onPick={pickGame} /> : <HomePhone onJoin={() => go('join')} onHost={() => go('pick')} onPick={pickGame} />;
+      return big ? <HomeDesktop onPick={pickGame} onJoin={() => go('join')} /> : <HomePhone onJoin={() => go('join')} onHost={() => go('pick')} onPick={pickGame} />;
   }
 }

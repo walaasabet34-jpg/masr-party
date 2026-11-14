@@ -68,7 +68,7 @@ export function BoatSteps() {
 }
 
 // Desktop: the chosen game card on one side, its setup on the other, then open a big-screen room.
-export function SetupDesktop({ game, onBack }) {
+export function SetupDesktop({ game, onBack, onHostPlay }) {
   const [mode, setMode] = useState('medium');
   const [busy, setBusy] = useState(false);
   const open = async () => {
@@ -97,19 +97,21 @@ export function SetupDesktop({ game, onBack }) {
             <>
               <h2 className="mb-5 font-display font-black text-4xl">{T.pickVibe}</h2>
               <VibeList mode={mode} setMode={setMode} big />
-              <Btn color={T.modes[mode].color} size="xl" className="mt-6 w-full" onClick={open} disabled={busy}>
-                {T.openParty}
+              <Btn color={T.modes[mode].color} size="xl" className="mt-6 w-full" onClick={() => onHostPlay(mode)} disabled={busy}>
+                {T.hostAndPlay}
               </Btn>
             </>
           ) : (
             <>
               <h2 className="mb-5 font-display font-black text-4xl">{T.boatSetupTitle}</h2>
               <BoatSteps />
-              <Btn color="cyan" size="xl" className="mt-6 w-full" onClick={open} disabled={busy}>
-                {T.openBoat}
+              <Btn color="cyan" size="xl" className="mt-6 w-full" onClick={() => onHostPlay(mode)} disabled={busy}>
+                {T.hostAndPlay}
               </Btn>
             </>
           )}
+          <p className="mt-3 text-center text-sm text-ink-muted">{T.twoPlayersHint}</p>
+          <Btn color="dark" size="sm" className="mt-3 w-full" onClick={open} disabled={busy}>{T.displayOnly}</Btn>
         </div>
       </div>
     </div>

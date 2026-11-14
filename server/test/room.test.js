@@ -128,3 +128,53 @@ test('intensity filters content; roulette applies one signed points card', () =>
   assert.equal(changed.length, 1);
   assert.ok([2, 3, -1, -2].includes(changed[0]));
 });
+
+test('one participating host and one guest can start; larger games unlock for the very next round', () => {
+  const r = new Room('DUO');
+  const host = r.addPlayer({ name: 'المضيف' }, { asHost: true }).player;
+  r.start(host.id, 0);
+  assert.equal(r.phase, 'lobby', 'one person alone cannot start');
+  r.addPlayer({ name: 'صاحب' });
+  r.updateSettings(host.id, { enabledGames: ['most-likely-to'], totalRounds: 0 });
+  r.start(host.id, 0);
+  assert.equal(r.phase, 'briefing');
+  assert.ok(getGame(r.nextGameId).minPlayers <= 2, 'fallback game supports a pair');
+  play(r, 0);
+  assert.equal(r.phase, 'playing');
+  assert.equal(r.game.roster.length, 2);
+  assert.ok(r.game.roster.some((p) => p.id === host.id));
+  const third = r.addPlayer({ name: 'صاحب كمان' }).player;
+  assert.equal(third.late, true);
+  assert.equal(r.game.roster.length, 2, 'joining does not disrupt current round');
+  r.finishGame(60000);
+  assert.equal(third.late, false);
+  assert.equal(r.nextGameId, 'most-likely-to', '3-player game is eligible immediately');
+  play(r, 70000);
+  assert.equal(r.game.roster.length, 3);
+});
+
+test('a pair cannot be forced to start with only one connected player', () => {
+  const { r, ps } = mk(2);
+  r.start('display', 0);
+  r.setConnected(ps[1].id, false);
+  r.forceStart('display', 1);
+  assert.equal(r.phase, 'briefing');
+  r.setConnected(ps[1].id, true);
+  play(r, 100);
+  assert.equal(r.phase, 'playing');
+  for (const p of ps) r.setConnected(p.id, false);
+  r.finishGame(20000);
+  assert.equal(r.phase, 'briefing');
+  r.forceStart('display', 20001);
+  assert.equal(r.phase, 'briefing', 'empty room waits for two connected players');
+});
+
+test('rooms keep accepting more than two players up to their documented limits', () => {
+  for (const [format, cap] of [['party', 20], ['boat', 12]]) {
+    const r = new Room('MORE', { format });
+    r.addPlayer({ name: 'المضيف' }, { asHost: true });
+    for (let i = 1; i < cap; i++) assert.ok(r.addPlayer({ name: 'صاحب' + i }).player);
+    assert.equal(r.players.length, cap);
+    assert.equal(r.addPlayer({ name: 'زيادة' }).error, 'room_full');
+  }
+});
