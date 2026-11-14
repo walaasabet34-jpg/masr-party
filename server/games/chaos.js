@@ -51,7 +51,7 @@ export const roulette = {
     };
   },
   // the card is shown only when the wheel stops (clients reveal it at startAt + spin)
-  view: (s) => ({ wedges: s.wedges, targetId: s.targetId, card: s.card, turns: s.turns, startAt: s.startAt }),
+  view: (s, pid, ctx) => ({ wedges: s.wedges, targetId: s.targetId, card: s.startAt !== null && ctx.now >= s.startAt + 6000 ? s.card : null, turns: s.turns, startAt: s.startAt }),
 };
 
 // ---------------------------------------------------------------- Hot Potato

@@ -106,7 +106,6 @@ function PhoneShell({ snap }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <PausedBanner snap={snap} />
         <ClaimOverlay snap={snap} />
-        <JudgeOverlay snap={snap} />
         <AnimatePresence mode="wait">
           <motion.div key={snap.phase + (snap.phase === 'playing' ? snap.round : '')} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.25 }} className="flex flex-1 flex-col">
             {snap.phase === 'lobby' && <LobbyPhone snap={snap} />}
@@ -197,7 +196,6 @@ function Seats({ snap, big }) {
               {p.name}
             </span>
             {p.id === snap.hostId && <span className="absolute -top-2 left-1 rounded-full border-2 border-black bg-white px-1.5 text-[10px] font-black text-black">{T.hostTag}</span>}
-            {p.sober && <span className="absolute -top-2 right-1 text-lg">🧃</span>}
             {kick === p.id && (
               <span
                 role="button"
@@ -302,9 +300,8 @@ function SettingsPanel({ snap }) {
   const { list } = useMetas();
   const party = snap.settings.format === 'party';
   const n = snap.settings.enabledGames.length || list.length;
-  const dry = snap.settings.noDrinks;
   const est = (r) => {
-    const m = r * (dry ? 2 : 3);
+    const m = r * 2;
     return m >= 60 ? `حوالي ${Math.round((m / 60) * 2) / 2} ساعة` : `حوالي ${m} دقيقة`;
   };
   if (!party) return null;
@@ -339,10 +336,9 @@ function SettingsPanel({ snap }) {
             );
           })}
         </div>
-        <div className="mt-1 text-xs text-ink-muted">{snap.settings.totalRounds ? est(snap.settings.totalRounds) : T.endless} · {dry ? T.roundsNoteDry : T.roundsNote}</div>
+        <div className="mt-1 text-xs text-ink-muted">{snap.settings.totalRounds ? est(snap.settings.totalRounds) : T.endless} · {T.roundsNote}</div>
       </div>
-      <Toggle on={snap.settings.missions} onChange={(v) => api.settings({ missions: v })} label={`🕶️ ${T.missions}`} sub={dry ? T.missionsAboutDry : T.missionsAbout} />
-      <Toggle on={snap.settings.noDrinks} onChange={(v) => api.settings({ noDrinks: v })} label={`🧃 ${T.noDrinksParty}`} sub={T.noDrinksPartyHint} />
+      <Toggle on={snap.settings.missions} onChange={(v) => api.settings({ missions: v })} label={`🕶️ ${T.missions}`} sub={T.missionsAbout} />
       {games && <GamesPicker snap={snap} onClose={() => setGames(false)} />}
     </div>
   );
@@ -384,14 +380,13 @@ function LobbyPhone({ snap }) {
   const P = playerMap(snap);
   const me = P[snap.me];
   const control = isControl(snap);
-  const { identity } = useStore();
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
   const ok = snap.players.filter((p) => p.connected).length >= 2;
   const share = async () => {
     const url = joinUrl(snap.code);
     try {
-      if (navigator.share) await navigator.share({ title: T.appName, text: `تعالى العب معانا «${T.appName}» 🍻`, url });
+      if (navigator.share) await navigator.share({ title: T.appName, text: `تعالى العب معانا «${T.appName}» 🎉`, url });
       else {
         await navigator.clipboard.writeText(url);
         setCopied(true);
@@ -446,9 +441,6 @@ function LobbyPhone({ snap }) {
               <Avatar key={p.id} p={p} size={40} />
             ))}
           </div>
-          <div className="mt-auto w-full pb-6">
-            <Toggle on={!!identity.sober} onChange={(v) => api.setIdentity({ sober: v })} label={T.notDrinking} sub={T.notDrinkingSub} />
-          </div>
         </div>
       )}
     </div>
@@ -457,43 +449,27 @@ function LobbyPhone({ snap }) {
 
 // ======================================================================= briefing
 function statusOf(snap, p) {
-  const P = playerMap(snap);
-  const pending = snap.lastResult?.assignments.find((a) => a.playerId === p.id && a.resolved === 'pending');
-  const side = snap.sideDrinks.find((d) => d.playerId === p.id);
-  if (pending || side) return { kind: 'drinking', label: (pending ?? side).penalty.label, judge: P[(pending ?? side).judge], drink: pending ? { kind: 'round', id: p.id } : { kind: 'side', id: side.id } };
-  const judging = snap.lastResult?.assignments.find((a) => a.judge === p.id && a.resolved === 'pending') ?? snap.sideDrinks.find((d) => d.judge === p.id);
-  if (judging) return { kind: 'checking', drinker: P[judging.playerId] };
-  if (snap.ready.includes(p.id)) return { kind: 'ready' };
-  return { kind: snap.steps[p.id] ?? 'results' };
+  if (snap.ready.includes(p.id)) return 'ready';
+  return snap.steps[p.id] ?? 'results';
 }
-const ORDER = { drinking: 0, checking: 1, results: 2, check: 3, rules: 4, ready: 5 };
+const ORDER = { results: 0, rules: 1, ready: 2 };
 
 function ReadyList({ snap, big }) {
   const control = isControl(snap);
   const people = snap.players.filter((p) => !p.excluded).map((p) => ({ p, s: statusOf(snap, p) }));
-  people.sort((a, b) => ORDER[a.s.kind] - ORDER[b.s.kind]);
-  const waiting = people.filter((x) => x.s.kind !== 'ready').length;
+  people.sort((a, b) => ORDER[a.s] - ORDER[b.s]);
+  const waiting = people.filter((x) => x.s !== 'ready').length;
   return (
     <div className="flex flex-col items-center gap-3">
       <div className={`font-display font-black ${big ? 'text-2xl' : 'text-xl'} ${waiting ? '' : 'animate-pulse text-lime'}`}>{waiting ? `⏳ ${T.waitingForN(waiting)}` : T.everyoneSet}</div>
       <div className="flex flex-wrap justify-center gap-2">
-        {people.map(({ p, s }) => {
-          const label = !p.connected ? T.stAway : s.kind === 'drinking' ? `🍺 ${s.label}` : s.kind === 'checking' ? T.stChecking(s.drinker?.name) : s.kind === 'ready' ? T.stReady : s.kind === 'rules' ? T.stRules : s.kind === 'check' ? T.stCheck : T.stResults;
-          return (
-            <button
-              key={p.id}
-              type="button"
-              disabled={!(control && s.kind === 'drinking')}
-              onClick={() => api.judge(s.drink.kind, s.drink.id, true)}
-              title={control && s.kind === 'drinking' ? T.hostConfirm : undefined}
-              className={`flex items-center gap-2 rounded-2xl border-[3px] border-black py-1 pl-3 pr-1.5 text-right ${s.kind === 'ready' ? 'bg-lime/90 text-black opacity-80' : s.kind === 'drinking' ? 'bg-red text-white shadow-hard-sm' : 'bg-white text-black shadow-hard-sm'}`}
-            >
-              <Avatar p={p} size={28} />
-              <span className="font-display font-black text-sm">{p.name}</span>
-              <span className="text-xs opacity-80">{label}</span>
-            </button>
-          );
-        })}
+        {people.map(({ p, s }) => (
+          <span key={p.id} className={`flex items-center gap-2 rounded-2xl border-[3px] border-black py-1 pl-3 pr-1.5 ${s === 'ready' ? 'bg-lime/90 text-black opacity-80' : 'bg-white text-black shadow-hard-sm'}`}>
+            <Avatar p={p} size={28} />
+            <span className="font-display font-black text-sm">{p.name}</span>
+            <span className="text-xs opacity-80">{!p.connected ? T.stAway : s === 'ready' ? T.stReady : s === 'rules' ? T.stRules : T.stResults}</span>
+          </span>
+        ))}
       </div>
       {control && waiting > 0 && (
         <Btn size="sm" color="dark" onClick={api.forceStart}>
@@ -531,12 +507,11 @@ function PausedBanner({ snap }) {
 
 function NextGameCard({ snap, big }) {
   const meta = useGameMeta(snap.nextGameId);
-  const dry = snap.settings.noDrinks;
   if (snap.final)
     return (
       <div className="rounded-[34px] border-4 border-black bg-yellow p-6 text-black shadow-hard">
         <div className="font-display font-black text-5xl">{T.thatsAWrap}</div>
-        <p className="mt-2 text-lg">{dry ? T.finalDescDry : T.finalDesc}</p>
+        <p className="mt-2 text-lg">{T.finalDesc}</p>
       </div>
     );
   if (!meta) return null;
@@ -549,18 +524,46 @@ function NextGameCard({ snap, big }) {
           <span className={big ? 'text-7xl' : 'text-5xl'}>{meta.icon}</span>
           <div>
             <div className={`font-display font-black ${big ? 'text-5xl' : 'text-3xl'}`}>{meta.name}</div>
-            <div className="font-display font-bold opacity-80">{dry ? meta.taglineDry : meta.tagline}</div>
+            <div className="font-display font-bold opacity-80">{meta.tagline}</div>
           </div>
         </div>
       </div>
       <div className="relative m-2 rounded-[26px] bg-black/80 p-4 text-white">
         <div className="mb-1 text-xs font-bold tracking-wider text-ink-muted">{T.howToPlay}</div>
-        <p className={big ? 'text-xl leading-relaxed' : 'leading-relaxed'}>{dry ? meta.howToDry : meta.howTo}</p>
+        <p className={big ? 'text-xl leading-relaxed' : 'leading-relaxed'}>{meta.howTo}</p>
         <div className="mt-3 rounded-2xl border-2 border-white/15 p-3 font-display font-black" style={{ color: HEX[meta.color] }}>
-          {dry ? '😬 ' : '🍺 '}
-          {dry ? meta.ruleDry : meta.rule}
+          📏 {meta.rule}
         </div>
+        {meta.pointsNote && <div className="mt-2 rounded-2xl bg-white/10 p-2 text-sm font-bold">🏆 {meta.pointsNote}</div>}
         {snap.fallbackNote && <p className="mt-2 text-sm text-ink-muted">{T.fallbackNote(snap.fallbackNote.games.join('، '), snap.fallbackNote.need, snap.fallbackNote.game)}</p>}
+      </div>
+    </div>
+  );
+}
+
+const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
+
+// Every player's points this round: what they gained, any deduction and why.
+function PointsList({ snap }) {
+  const res = snap.lastResult;
+  const P = playerMap(snap);
+  const rows = Object.entries(res.ledger ?? {})
+    .filter(([id]) => P[id])
+    .sort((a, b) => b[1].total - a[1].total);
+  if (!rows.length) return null;
+  return (
+    <div className="rounded-3xl border-4 border-black bg-bg-elevated p-3 shadow-hard">
+      <div className="mb-2 font-display font-black text-xl">🏆 {T.roundPoints}</div>
+      <div className="flex flex-col gap-1.5">
+        {rows.map(([id, l]) => (
+          <div key={id} className="flex items-center gap-2 rounded-2xl bg-black/30 px-2 py-1">
+            <Avatar p={P[id]} size={30} />
+            <span className="flex-1 truncate font-display font-black">{P[id].name}</span>
+            {l.deduct < 0 && <span className="truncate text-xs text-red">{l.why}</span>}
+            <span className={`rounded-full border-2 border-black px-2 font-display font-black text-sm ${l.total > 0 ? 'bg-lime text-black' : l.total < 0 ? 'bg-red text-white' : 'bg-white/20'}`}>{signed(l.total)}</span>
+            <span className="w-10 text-left text-xs text-ink-muted tabular">{P[id].stats.points}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -570,9 +573,6 @@ function ResultsBlock({ snap, big }) {
   const res = snap.lastResult;
   const meta = useGameMeta(res?.gameId);
   if (!res) return null;
-  const P = playerMap(snap);
-  const dry = snap.settings.noDrinks;
-  const drinkers = res.assignments.filter((a) => a.resolved !== 'skipped');
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-2 text-ink-muted">
@@ -585,27 +585,7 @@ function ResultsBlock({ snap, big }) {
       <Reveal res={res} />
       <ResultTable snap={snap} compact={!big} />
       {big && <Gallery res={res} snap={snap} />}
-      {!dry && drinkers.length > 0 && (
-        <div className="rounded-3xl border-4 border-black bg-red p-3 text-white shadow-hard">
-          <div className="mb-2 font-display font-black text-xl">🍺 {T.whoDrinks}</div>
-          <div className="flex flex-wrap gap-2">
-            {drinkers.map((a) => (
-              <button
-                key={a.playerId}
-                type="button"
-                disabled={!isControl(snap) || a.resolved !== 'pending'}
-                onClick={() => api.judge('round', a.playerId, true)}
-                className={`flex items-center gap-2 rounded-2xl border-[3px] border-black px-2 py-1 ${a.resolved === 'done' ? 'bg-lime text-black' : 'bg-white text-black'}`}
-              >
-                <Avatar p={P[a.playerId]} size={30} />
-                <span className="font-display font-black">{P[a.playerId]?.name}</span>
-                <span className="text-sm">{a.penalty.label}</span>
-                <span>{a.resolved === 'done' ? '✓' : '⏳'}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <PointsList snap={snap} />
     </div>
   );
 }
@@ -614,7 +594,6 @@ function BriefingBig({ snap }) {
   return (
     <div className="grid flex-1 grid-cols-2 gap-8">
       <div className="flex min-w-0 flex-col gap-4">
-        {snap.waterBreak && <div className="rounded-3xl border-4 border-black bg-cyan p-4 font-display font-black text-2xl text-black shadow-hard">💧 {T.waterBreak}</div>}
         {snap.lastResult ? (
           <ResultsBlock snap={snap} big />
         ) : (
@@ -640,45 +619,8 @@ function BriefingBig({ snap }) {
 function myOutcome(snap) {
   const res = snap.lastResult;
   if (!res || !res.roster.includes(snap.me)) return null;
-  const a = res.assignments.find((x) => x.playerId === snap.me);
-  return { won: res.winners.includes(snap.me), lost: !!a || res.losers.includes(snap.me), a, pts: res.points?.[snap.me] };
-}
-
-function DrinkCard({ snap, a, kind }) {
-  const P = playerMap(snap);
-  const judge = P[a.judge];
-  const done = a.resolved === 'done';
-  return (
-    <motion.div initial={{ scale: 0.6, rotate: 5, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 16 }} className="relative overflow-hidden rounded-[30px] border-[5px] border-black bg-red p-4 text-white shadow-hard">
-      <div className="stripes pointer-events-none absolute inset-0 opacity-40" />
-      <div className="relative flex items-center gap-3">
-        <span className="text-6xl">{a.penalty.kind === 'glass' ? '🍺' : a.penalty.kind === 'shot' ? '🥃' : '🍹'}</span>
-        <div>
-          <div className="text-[11px] font-black tracking-[0.2em] opacity-80">🍺 {kind === 'side' ? T.sideDrink : T.yourDrink}</div>
-          <div className="text-stroke font-display font-black text-4xl">{a.penalty.label}</div>
-        </div>
-      </div>
-      <div className="relative mt-3 rounded-2xl bg-black/30 p-3 text-sm">
-        {done ? (
-          <span className="font-display font-black text-lime">{T.drinkConfirmed}</span>
-        ) : judge ? (
-          <>
-            <div className="font-display font-black">{T.checkedBy(judge.name)}</div>
-            <div className="opacity-80">{T.watchedHint(judge.name)}</div>
-            {a.saidNo > 0 && <div className="mt-1 font-black text-yellow">{T.judgeSaidNo(judge.name)}</div>}
-            {!judge.connected && (
-              <button type="button" onClick={() => api.reassign(kind, kind === 'side' ? a.id : a.playerId)} className="mt-2 rounded-full bg-white px-3 py-1 font-black text-black">
-                غيّر الحكم
-              </button>
-            )}
-          </>
-        ) : (
-          <div>{T.drinkUp}</div>
-        )}
-      </div>
-      {done && <div className="card-stamp absolute left-4 top-4 rounded-xl bg-lime px-3 py-1 font-display font-black text-black" style={{ borderColor: '#000' }}>✓</div>}
-    </motion.div>
-  );
+  const l = res.ledger?.[snap.me] ?? { gained: 0, deduct: 0, total: 0, why: null };
+  return { won: res.winners.includes(snap.me), lost: res.losers.includes(snap.me), ...l };
 }
 
 function BriefingPhone({ snap }) {
@@ -686,37 +628,35 @@ function BriefingPhone({ snap }) {
   const out = myOutcome(snap);
   const ready = snap.ready.includes(snap.me);
   const [view, setView] = useState(res && !ready ? 'results' : 'rules');
-  const owes = (out?.a && out.a.resolved === 'pending') || snap.sideDrinks.some((d) => d.playerId === snap.me);
-  const dry = snap.settings.noDrinks;
-  const P = playerMap(snap);
-  const me = P[snap.me];
+  const me = playerMap(snap)[snap.me];
   useEffect(() => {
     api.step(view === 'results' && res ? 'results' : 'rules');
   }, [view]);
   useEffect(() => {
-    if (out?.lost && out.a) {
-      sfx.drink();
+    if (!out) return;
+    if (out.total < 0) {
+      sfx.lose();
       haptic.heavy();
-    } else if (out?.won) sfx.win();
+    } else if (out.total > 0) sfx.win();
   }, [res?.round]);
-  const side = snap.sideDrinks.filter((d) => d.playerId === snap.me);
   if (view === 'results' && res)
     return (
       <div className="flex flex-1 flex-col gap-4 px-5">
         {out ? (
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-[30px] border-4 border-black p-4 text-center shadow-hard" style={{ background: out.lost ? HEX.red : out.won ? HEX.lime : '#fff', color: out.lost ? '#fff' : '#000' }}>
-            <div className="text-5xl">{out.lost ? '😬' : out.won ? '🏆' : '😎'}</div>
-            <div className="font-display font-black text-3xl">{out.lost ? T.youLost : out.won ? T.youWon : T.youreSafe}</div>
-            {dry && <div className="font-display font-black">{out.pts ? T.pointsWon(out.pts) : T.noPoints}</div>}
-            {out.lost && !out.a && !dry && <div className="text-sm">{me?.sober ? T.justForFunLost : T.noDrinkForYou}</div>}
+          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="rounded-[30px] border-4 border-black p-4 text-center shadow-hard" style={{ background: out.total < 0 ? HEX.red : out.won ? HEX.lime : out.lost ? '#2a2a40' : '#fff', color: out.total < 0 || (out.lost && !out.won) ? '#fff' : '#000' }}>
+            <div className="text-5xl">{out.total < 0 ? '😬' : out.won ? '🏆' : out.lost ? '😅' : '😎'}</div>
+            <div className="font-display font-black text-3xl">{out.won ? T.youWon : out.lost ? T.youLost : T.youreSafe}</div>
+            <div className="mt-1 font-display font-black text-2xl">{out.gained > 0 ? T.gained(out.gained) : out.gained < 0 ? T.lost(-out.gained) : out.deduct < 0 ? '' : T.noPoints}</div>
+            {out.deduct < 0 && (
+              <div className="mt-1 rounded-2xl bg-black/25 px-3 py-1 font-display font-black">
+                {T.lost(-out.deduct)}: {out.why}
+              </div>
+            )}
+            <div className="mt-2 text-sm opacity-80">{T.yourTotal(me?.stats.points ?? 0)}</div>
           </motion.div>
         ) : (
           <div className="rounded-3xl bg-black/30 p-4 text-center font-display font-black">{T.watchBigScreen}</div>
         )}
-        {out?.a && out.a.resolved !== 'skipped' && <DrinkCard snap={snap} a={out.a} kind="round" />}
-        {side.map((d) => (
-          <DrinkCard key={d.id} snap={snap} a={d} kind="side" />
-        ))}
         <div className="rounded-3xl border-[3px] border-white/10 bg-black/30 p-3">
           <ResultsBlock snap={snap} />
           <Gallery res={res} snap={snap} />
@@ -730,10 +670,6 @@ function BriefingPhone({ snap }) {
     );
   return (
     <div className="flex flex-1 flex-col gap-4 px-5">
-      {snap.waterBreak && <div className="rounded-3xl border-4 border-black bg-cyan p-3 font-display font-black text-black">💧 {T.waterBreak}</div>}
-      {side.map((d) => (
-        <DrinkCard key={d.id} snap={snap} a={d} kind="side" />
-      ))}
       <NextGameCard snap={snap} />
       <MissionCard snap={snap} />
       {res && (
@@ -745,54 +681,16 @@ function BriefingPhone({ snap }) {
         {ready ? (
           <div className="rounded-3xl border-4 border-black bg-lime py-4 text-center font-display font-black text-2xl text-black shadow-hard">{T.youAreReady}</div>
         ) : (
-          <Btn color={owes ? 'dark' : 'lime'} size="xl" className="w-full" disabled={owes} onClick={api.ready}>
-            {owes ? T.mustDrinkFirst : snap.final ? T.seeAwards : T.ready}
-          </Btn>
+          <>
+            {!snap.final && <div className="text-center font-display font-black">{T.readyNext}</div>}
+            <Btn color="lime" size="xl" className="w-full" onClick={api.ready}>
+              {snap.final ? T.seeAwards : T.ready}
+            </Btn>
+          </>
         )}
         {(ready || isControl(snap)) && <ReadyList snap={snap} />}
       </div>
     </div>
-  );
-}
-
-function JudgeOverlay({ snap }) {
-  if (snap.phase !== 'briefing') return null;
-  return <JudgePrompt snap={snap} />;
-}
-function JudgePrompt({ snap }) {
-  const P = playerMap(snap);
-  const items = [
-    ...(snap.lastResult?.assignments ?? []).filter((a) => a.judge === snap.me && a.resolved === 'pending').map((a) => ({ kind: 'round', id: a.playerId, a })),
-    ...snap.sideDrinks.filter((d) => d.judge === snap.me).map((d) => ({ kind: 'side', id: d.id, a: d })),
-  ];
-  const it = items[0];
-  useEffect(() => {
-    if (it) {
-      sfx.pop();
-      haptic.medium();
-    }
-  }, [it?.id]);
-  if (!it) return null;
-  const who = P[it.a.playerId];
-  return (
-    <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mx-4 mb-3 rounded-[28px] border-4 border-black bg-yellow p-4 text-black shadow-hard">
-      <div className="text-xs font-black tracking-[0.2em] opacity-70">{T.judgeTitle}</div>
-      <div className="mt-1 flex items-center gap-3">
-        <Avatar p={who} size={48} />
-        <div className="flex-1">
-          <div className="font-display font-black text-2xl">{T.didTheyDrink(who?.name)}</div>
-          <div className="font-display font-bold">{it.a.penalty.label}</div>
-        </div>
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Btn color="dark" size="sm" onClick={() => api.judge(it.kind, it.id, false)}>
-          {T.judgeNo}
-        </Btn>
-        <Btn color="lime" size="sm" onClick={() => api.judge(it.kind, it.id, true)}>
-          {T.judgeYes} ✓
-        </Btn>
-      </div>
-    </motion.div>
   );
 }
 
@@ -867,7 +765,7 @@ function Intro({ snap, big }) {
         {meta.icon}
       </motion.div>
       <h1 className={`text-stroke font-display font-black ${big ? 'text-8xl' : 'text-5xl'}`}>{meta.name}</h1>
-      <p className={`font-display font-bold text-ink-muted ${big ? 'text-3xl' : 'text-xl'}`}>{snap.settings.noDrinks ? meta.taglineDry : meta.tagline}</p>
+      <p className={`font-display font-bold text-ink-muted ${big ? 'text-3xl' : 'text-xl'}`}>{meta.tagline}</p>
       <motion.div key={left} initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className={`font-display font-black ${big ? 'text-9xl' : 'text-7xl'}`} style={{ color: HEX[meta.color] }}>
         {left || 'يلا!'}
       </motion.div>
@@ -910,9 +808,8 @@ function PlayPhone({ snap }) {
 // ======================================================================= end
 function Ended({ snap, big }) {
   const P = playerMap(snap);
-  const dry = snap.settings.noDrinks;
   const boat = snap.settings.format === 'boat';
-  const rows = [...snap.players].sort((a, b) => (dry ? b.stats.points - a.stats.points : boat ? b.stats.sips - a.stats.sips : b.stats.drinks - a.stats.drinks || b.stats.points - a.stats.points));
+  const rows = [...snap.players].sort((a, b) => b.stats.points - a.stats.points || a.stats.losses - b.stats.losses);
   useEffect(() => {
     sfx.airhorn();
   }, []);
@@ -939,8 +836,7 @@ function Ended({ snap, big }) {
             <span className="w-6 text-center font-display font-black">{i + 1}</span>
             <Avatar p={p} size={30} />
             <span className="flex-1 font-display font-black">{p.name}</span>
-            {!dry && !boat && <span className="text-sm">🍺 {p.stats.drinks}</span>}
-            {boat ? <span className="text-sm">🍺 {p.stats.sips}</span> : <span className="text-sm text-lime">{p.stats.points} {T.points}</span>}
+            <span className="font-display font-black text-lime tabular">{p.stats.points} {T.points}</span>
           </div>
         ))}
       </div>

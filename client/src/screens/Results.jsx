@@ -17,7 +17,7 @@ function Row({ r, p, lost, i, pts }) {
         {r.why && <div className={`truncate text-xs ${lost ? 'text-white/80' : 'text-black/60'}`}>{r.why}</div>}
       </div>
       <span className="font-display font-black tabular text-sm">{r.value}</span>
-      {pts !== undefined && <span className={`rounded-full border-2 border-black px-2 font-display font-black text-xs ${lost ? 'bg-black/30' : 'bg-lime'}`}>+{pts}</span>}
+      {pts !== undefined && <span className={`rounded-full border-2 border-black px-2 font-display font-black text-xs ${pts < 0 ? 'bg-black/40 text-white' : lost ? 'bg-black/30' : 'bg-lime'}`}>{pts > 0 ? '+' : ''}{pts}</span>}
     </motion.div>
   );
 }
@@ -28,7 +28,7 @@ export function ResultTable({ snap, compact }) {
   const P = playerMap(snap);
   const { table } = res;
   const lost = (id) => res.losers.includes(id);
-  const pts = (id) => (snap.settings.noDrinks ? res.points?.[id] : undefined);
+  const pts = (id) => res.ledger?.[id]?.total;
   if (table.layout === 'bars') {
     const max = Math.max(1, ...table.rows.map((r) => r.n ?? 0));
     return (

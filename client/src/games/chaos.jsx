@@ -63,7 +63,10 @@ function Wheel({ snap, v, size = 320 }) {
       </svg>
       {done && (
         <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute inset-0 flex items-center justify-center">
-          <div className="rounded-3xl border-4 border-black bg-white px-5 py-3 text-center font-display font-black text-3xl text-black shadow-hard">💀 {P[v.targetId]?.name}</div>
+          <div className="rounded-3xl border-4 border-black bg-white px-5 py-3 text-center font-display font-black text-3xl text-black shadow-hard">
+            🎯 {P[v.targetId]?.name}
+            {v.card && <div className={`mt-1 text-2xl ${v.card.n > 0 ? 'text-green-600' : 'text-red'}`}>{v.card.icon} {v.card.label}</div>}
+          </div>
         </motion.div>
       )}
     </div>
@@ -78,7 +81,7 @@ const roulette = {
   ),
   Big: ({ snap, v }) => (
     <div className="flex flex-1 flex-col items-center justify-center gap-6">
-      <Prompt big color="magenta">الروليت! 💀</Prompt>
+      <Prompt big color="magenta">الروليت! 🎰 كارت نقط لواحد فيكم</Prompt>
       <Wheel snap={snap} v={v} size={480} />
     </div>
   ),
@@ -158,7 +161,7 @@ const chairs = {
     if (!alive)
       return (
         <div className="flex flex-1 flex-col items-center justify-center gap-3">
-          <Prompt color="red">خرجت! 🍺</Prompt>
+          <Prompt color="red">خرجت! 🚶</Prompt>
         </div>
       );
     return (
@@ -257,7 +260,7 @@ function Cups({ v, onPick, showShot, picks, P, big }) {
             <div className="flex items-end justify-center rounded-t-[40%] rounded-b-lg border-4 border-black shadow-hard" style={{ width: w, height: w, background: HEX.red, transform: showShot && cup === v.shot ? 'translateY(-30%)' : 'none', transition: 'transform .3s' }}>
               <span className="mb-2 font-display font-black text-white" style={{ fontSize: w / 4 }}>{slot + 1}</span>
             </div>
-            {showShot && cup === v.shot && <span style={{ fontSize: w / 2.4 }}>🥃</span>}
+            {showShot && cup === v.shot && <span style={{ fontSize: w / 2.4 }}>🪙</span>}
             {picks && (
               <div className="mt-1 flex flex-wrap justify-center gap-0.5">
                 {Object.entries(picks)
@@ -288,7 +291,7 @@ const shellShock = {
           setSel(null);
           haptic.light();
         } : null} />
-        {v.stage === 'show' && <div className="text-center font-display font-black text-2xl">بص على الشوت 👀</div>}
+        {v.stage === 'show' && <div className="text-center font-display font-black text-2xl">بص على الجنيه 👀</div>}
         {v.stage === 'shuffle' && hustler && (
           <div className="flex flex-col gap-2">
             <div className="text-center font-display font-black">لخبطها! بسرعة · {v.swaps.length} تبديلة</div>
@@ -303,7 +306,7 @@ const shellShock = {
           </div>
         )}
         {v.stage === 'shuffle' && !hustler && <div className="text-center font-display font-black">{P[v.hustler]?.name} بيلخبط… تابع!</div>}
-        {v.stage === 'pick' && !hustler && (v.myPick === null ? <div className="text-center font-display font-black text-2xl">الشوت فين؟ دوس على كباية</div> : <Sent>اخترت كباية {v.myPick + 1}</Sent>)}
+        {v.stage === 'pick' && !hustler && (v.myPick === null ? <div className="text-center font-display font-black text-2xl">الجنيه فين؟ دوس على كباية</div> : <Sent>اخترت كباية {v.myPick + 1}</Sent>)}
         {v.stage === 'pick' && hustler && <div className="text-center font-display font-black">بيخمّنوا… 😈</div>}
         {v.stage === 'pick' && <GameTimer snap={snap} until={v.until} total={12000} />}
       </div>
@@ -314,7 +317,7 @@ const shellShock = {
     const reveal = v.stage === 'reveal' || v.stage === 'done';
     return (
       <div className="flex flex-1 flex-col items-center gap-8">
-        <Prompt big color="red">{v.stage === 'show' ? 'بصوا على الشوت 👀' : v.stage === 'shuffle' ? `${P[v.hustler]?.name} بيلخبط! 🎩` : v.stage === 'pick' ? 'الشوت فين؟' : 'الشوت كان هنا!'}</Prompt>
+        <Prompt big color="red">{v.stage === 'show' ? 'بصوا على الجنيه 👀' : v.stage === 'shuffle' ? `${P[v.hustler]?.name} بيلخبط! 🎩` : v.stage === 'pick' ? 'الجنيه فين؟' : 'الجنيه كان هنا!'}</Prompt>
         <Cups v={v} P={P} big showShot={v.stage === 'show' || reveal} picks={reveal ? v.picks : null} />
         {v.stage === 'pick' && <Done ids={v.picked} snap={snap} big label="اختاروا" />}
       </div>

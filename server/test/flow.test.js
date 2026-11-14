@@ -29,7 +29,7 @@ async function until(fn, ms = 15000) {
   throw new Error('timeout waiting');
 }
 
-test('full party flow with display host, 3 phones, reconnect and drinks', async (t) => {
+test('full party flow with display host, 3 phones, reconnect and points', async (t) => {
   const srv = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: String(PORT) }, stdio: 'pipe' });
   t.after(() => srv.kill());
   await sleep(600);
@@ -84,16 +84,17 @@ test('full party flow with display host, 3 phones, reconnect and drinks', async 
     assert.equal(res.gameId, gid);
     if (gid === 'most-likely-to') assert.deepEqual(res.losers, [phones[2].id]); // votes can change until the vote closes; the last one counts
     if (gid !== 'roulette') assert.ok(res.losers.length >= 1, res.headline);
-    // losers cannot ready up before their drink is judged
-    const loser = phones.find((p) => p.id === res.losers[0]);
-    loser.emit('player:ready'); await sleep(150);
-    assert.ok(!tv.snap.ready.includes(loser.id));
-    for (const a of res.assignments) {
-      const judge = phones.find((p) => p.id === a.judge);
-      if (judge) judge.emit('drink:judge', { kind: 'round', id: a.playerId, yes: true });
-      else tv.emit('drink:judge', { kind: 'round', id: a.playerId, yes: true });
-    }
-    await until(() => tv.snap.lastResult.assignments.every((a) => a.resolved !== 'pending'));
+    // points: the ledger matches what each player's total grew by, once
+    const totals = Object.fromEntries(tv.snap.players.map((p) => [p.id, p.stats.points]));
+    for (const [id, l] of Object.entries(res.ledger)) assert.equal(l.total, l.gained + l.deduct);
+    // nothing to wait for between rounds except "ready"; a reconnect must not re-add points
+    phones[0].ws.close();
+    await sleep(300);
+    const again = client(); await again.open;
+    assert.ok((await again.req('room:join', { code: made.code, playerId: phones[0].id, token: phones[0].token })).ok);
+    again.id = phones[0].id; again.token = phones[0].token; phones[0] = again;
+    await until(() => tv.snap.players.every((p) => p.connected));
+    for (const p of tv.snap.players) assert.equal(p.stats.points, totals[p.id], 'reconnect changed points');
     assert.equal(tv.snap.round, round);
   }
   // inputs outside of play are ignored, end the night shows awards
@@ -104,7 +105,7 @@ test('full party flow with display host, 3 phones, reconnect and drinks', async 
   await until(() => tv.snap.phase === 'lobby');
 });
 
-test('boat: deal, parts 1-3 turn order and drinking', async (t) => {
+test('boat: deal, parts 1-3 turn order and points', async (t) => {
   const port = PORT + 1;
   const srv = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: String(port) }, stdio: 'pipe' });
   t.after(() => srv.kill());
@@ -131,15 +132,16 @@ test('boat: deal, parts 1-3 turn order and drinking', async (t) => {
     await sleep(100); assert.equal(host.snap.boat.pending, null);
     cur.emit('boat:act', { type: 'pick', pick: opt });
     await until(() => host.snap.boat.pending);
-    const p = host.snap.boat.pending;
-    if (p.stage === 'give') cur.emit('boat:act', { type: 'give', to: b.turn === r.playerId ? g.playerId : r.playerId });
-    await until(() => host.snap.boat.pending?.stage === 'drink');
-    byId[host.snap.boat.pending.to].emit('boat:act', { type: 'drank' });
-    await until(() => !host.snap.boat.pending);
+    // the result shows briefly, then the next turn comes by itself (no "who drinks" step)
+    await until(() => !host.snap.boat.pending, 6000);
   }
   const s = host.snap.boat;
   assert.equal(s.part, 4);
   assert.equal(s.hands[r.playerId].length, 3);
-  const total = Object.values(s.sips).reduce((a, x) => a + x.drunk, 0);
-  assert.equal(total, 2 * (1 + 2 + 3));
+  // a right guess pays the part number, a wrong one pays nothing
+  for (const id of [r.playerId, g.playerId]) {
+    const sc = s.score[id];
+    assert.ok(sc.points >= 0 && sc.points <= 6);
+    assert.equal(sc.points, s.log.filter((e) => e.t === 'guess' && e.pid === id && e.right).reduce((a, e) => a + e.part, 0));
+  }
 });

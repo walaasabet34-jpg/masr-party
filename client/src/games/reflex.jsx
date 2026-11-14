@@ -136,7 +136,7 @@ function DontLetGoPhone({ snap, v }) {
     holding.current = false;
     send('release');
   };
-  const msg = out === 'early' ? 'سبت بدري! 🍺' : out === 'nohold' ? 'ما مسكتش' : v.me.ms !== null ? `${v.me.ms} م.ث` : v.stage === 'go' ? 'سيب!' : fake ? 'لسه! 😈' : v.me.holding ? 'فضل ماسك…' : 'دوس وفضل دايس';
+  const msg = out === 'early' ? 'سبت بدري! 😬' : out === 'nohold' ? 'ما مسكتش' : v.me.ms !== null ? `${v.me.ms} م.ث` : v.stage === 'go' ? 'سيب!' : fake ? 'لسه! 😈' : v.me.holding ? 'فضل ماسك…' : 'دوس وفضل دايس';
   const bg = out ? HEX.red : v.stage === 'go' ? HEX.lime : fake ? HEX.yellow : v.me.holding ? HEX.mint : '#fff';
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5">

@@ -1,6 +1,6 @@
 // "المركب" — the card game. Five parts, one deck, scored in points.
 // Points: parts 1-3 a right guess earns the part number (1/2/3); pyramid cards earn the row
-// number (1-5); on the boat a wrong guess costs 1 and getting off earns 3.
+// number (1-5); on the boat a wrong guess costs 1 (at most 5 in total) and getting off earns 3.
 // Rules follow the reference game's published rule text (see docs/MATCHING.md for what was inferred).
 import { shuffle } from './lib/util.js';
 
@@ -9,6 +9,7 @@ const ROWS = [5, 4, 3, 2, 1];
 const ROW_MS = 30000;
 const SHOW_MS = 2600; // how long a guess result stays up before the next turn
 const OFF_BONUS = 3;
+const MAX_BOAT_LOSS = 5; // the boat ride can cost at most 5 points in total
 const GUESS_MS = 30000;
 const PICKS = { 1: ['red', 'black'], 2: ['higher', 'lower'], 3: ['between', 'outside', 'on'] };
 
@@ -16,7 +17,7 @@ const newDeck = (rng) => shuffle(rng, ['S', 'H', 'D', 'C'].flatMap((s) => Array.
 const isRed = (c) => c.s === 'H' || c.s === 'D';
 export const cardTxt = (c) => `${c.r <= 10 ? c.r : { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[c.r]}${{ S: '♠', H: '♥', D: '♦', C: '♣' }[c.s]}`;
 
-function judge(part, hand, card, pick) {
+function isRight(part, hand, card, pick) {
   if (part === 1) return (pick === 'red') === isRed(card);
   if (part === 2) return card.r !== hand[0].r && (pick === 'higher') === card.r > hand[0].r;
   const lo = Math.min(hand[0].r, hand[1].r);
@@ -143,7 +144,7 @@ function flipBoat(b, ctx) {
     const g = b.guesses[id] ?? null;
     const right = g && card.r !== boatCard.r && (g === 'higher') === card.r > boatCard.r;
     res[id] = { guess: g, right: !!right };
-    if (!right) n = award(n, id, -1, 'wrong');
+    if (!right) n = n.score[id].wrong < MAX_BOAT_LOSS ? award(n, id, -1, 'wrong') : award(n, id, 0, 'wrong');
   }
   const revealed = [...b.revealed];
   revealed[b.idx] = true;
@@ -188,7 +189,7 @@ export function boatAct(b, pid, act, ctx) {
       const deck = [...b.deck];
       const card = deck.shift();
       const hand = b.hands[pid];
-      const right = judge(b.part, hand, card, act.pick);
+      const right = isRight(b.part, hand, card, act.pick);
       let nb = { ...b, deck, hands: { ...b.hands, [pid]: [...hand, card] } };
       if (right) nb = award(nb, pid, b.part, 'right');
       nb = addLog(nb, { t: 'guess', pid, part: b.part, pick: act.pick, card: cardTxt(card), right });
