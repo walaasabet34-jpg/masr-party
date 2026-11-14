@@ -1,0 +1,350 @@
+@import 'tailwindcss';
+@import '@fontsource/rubik/arabic-700.css';
+@import '@fontsource/rubik/arabic-900.css';
+@import '@fontsource/rubik/latin-700.css';
+@import '@fontsource/rubik/latin-900.css';
+@import '@fontsource/cairo/arabic-400.css';
+@import '@fontsource/cairo/arabic-700.css';
+@import '@fontsource/cairo/latin-400.css';
+@import '@fontsource/cairo/latin-700.css';
+
+/* Design tokens copied from the reference game's palette. */
+@theme {
+  --color-bg: #0b0b12;
+  --color-bg-elevated: #15152a;
+  --color-ink: #f5f5ff;
+  --color-ink-muted: #a3a3c2;
+  --color-magenta: #ff2d95;
+  --color-lime: #c6ff00;
+  --color-cyan: #00e5ff;
+  --color-orange: #ff6b00;
+  --color-violet: #7c3aed;
+  --color-yellow: #ffd600;
+  --color-red: #ff1744;
+  --color-mint: #00ffa3;
+  --color-pink: #ff8fd8;
+  --color-blue: #2979ff;
+  --font-display: 'Rubik', system-ui, sans-serif;
+  --font-body: 'Cairo', system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* hard shadows mirrored for right-to-left layout */
+  --shadow-hard: -6px 6px 0 #000;
+  --shadow-hard-sm: -3px 3px 0 #000;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+html {
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior: none;
+}
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  margin: 0;
+}
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+@layer base {
+  button {
+    cursor: pointer;
+  }
+}
+button:disabled {
+  cursor: default;
+}
+:focus-visible {
+  outline: 3px solid var(--color-cyan);
+  outline-offset: 3px;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: 0;
+}
+/* Latin codes / numbers inside Arabic text */
+.ltr {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+.safe-top {
+  padding-top: max(var(--safe-top), 12px);
+}
+.safe-bottom {
+  padding-bottom: max(var(--safe-bottom), 12px);
+}
+.dock-bottom {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  padding-bottom: calc(var(--safe-bottom) + 1rem);
+  background: linear-gradient(to top, var(--color-bg) 55%, transparent);
+}
+
+.brutal {
+  box-shadow: var(--shadow-hard);
+  border: 4px solid #000;
+}
+.brutal-sm {
+  box-shadow: var(--shadow-hard-sm);
+  border: 3px solid #000;
+}
+.shadow-hard {
+  box-shadow: var(--shadow-hard);
+}
+.shadow-hard-sm {
+  box-shadow: var(--shadow-hard-sm);
+}
+.press {
+  transition: translate 0.1s ease-out, scale 0.1s ease-out, box-shadow 0.1s ease-out;
+}
+.press:active:not(:disabled) {
+  translate: -4px 4px;
+  scale: 0.96;
+  box-shadow: 0 0 #000;
+}
+.glass {
+  background: #26263ed1;
+  border: 1px solid #ffffff2e;
+}
+.text-stroke {
+  text-shadow: 3px 0 #000, -3px 0 #000, 0 3px #000, 0 -3px #000, 2px 2px #000, -2px 2px #000, 2px -2px #000, -2px -2px #000;
+}
+.text-stroke-sm {
+  text-shadow: 2px 0 #000, -2px 0 #000, 0 2px #000, 0 -2px #000;
+}
+.shout {
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  font-size: clamp(28px, 10.8vw, 64px);
+  line-height: 1.15;
+}
+.shout-md {
+  text-wrap: balance;
+  overflow-wrap: break-word;
+  font-size: clamp(24px, 8.8vw, 46px);
+  line-height: 1.2;
+}
+
+.stripes {
+  overflow: hidden;
+}
+.stripes::before {
+  content: '';
+  background-image: linear-gradient(45deg, #00000038 25%, #0000 25% 50%, #00000038 50% 75%, #0000 75%, #0000);
+  background-size: 72px 72px;
+  animation: 1.8s linear infinite stripes;
+  position: absolute;
+  inset: 0 -72px 0 0;
+}
+@keyframes stripes {
+  to {
+    transform: translate(-72px);
+  }
+}
+
+/* soft glowing background blobs */
+@keyframes blob {
+  0%,
+  to {
+    transform: translate(0) scale(1);
+  }
+  33% {
+    transform: translate(-30px, -40px) scale(1.15);
+  }
+  66% {
+    transform: translate(25px, 25px) scale(0.9);
+  }
+}
+.blob {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  opacity: 0.55;
+  filter: blur(70px);
+  background: var(--glow);
+  animation: 14s ease-in-out infinite blob;
+  will-change: transform;
+  transition: background 0.6s;
+}
+
+@keyframes shake {
+  10%,
+  90% {
+    transform: translate(-2px);
+  }
+  20%,
+  80% {
+    transform: translate(4px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translate(-8px);
+  }
+  40%,
+  60% {
+    transform: translate(8px);
+  }
+}
+.shake {
+  animation: 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both shake;
+}
+@keyframes bob {
+  0%,
+  to {
+    transform: translateY(0) rotate(-1.2deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(1.2deg);
+  }
+}
+.bob {
+  animation: 4.2s ease-in-out infinite bob;
+}
+@keyframes float {
+  0%,
+  to {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(4deg);
+  }
+}
+.float {
+  animation: 3.4s ease-in-out infinite float;
+}
+@keyframes orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.orbit {
+  animation: 60s linear infinite orbit;
+}
+.orbit-rev {
+  animation: 60s linear infinite reverse orbit;
+}
+@keyframes pulse-ring {
+  0% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.6);
+  }
+}
+.pulse-ring {
+  animation: 1.2s ease-out infinite pulse-ring;
+}
+@keyframes wave-x {
+  to {
+    transform: translate(50%);
+  }
+}
+.wave {
+  animation: 9s linear infinite wave-x;
+}
+@keyframes card-stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-10deg) scale(2.4);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(-10deg) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-10deg) scale(1);
+  }
+}
+.card-stamp {
+  border: 5px solid;
+  transform: rotate(-10deg);
+  animation: 0.42s cubic-bezier(0.2, 1.4, 0.4, 1) both card-stamp;
+  box-shadow: 0 0 0 3px #000, -6px 6px 0 3px #000;
+}
+@keyframes tx-in {
+  0%,
+  15% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.tx-in {
+  animation: 0.4s cubic-bezier(0.4, 0, 0.2, 1) both tx-in;
+}
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+.caret {
+  animation: 1s step-end infinite caret;
+}
+@keyframes sail {
+  0%,
+  to {
+    transform: rotate(-3deg);
+  }
+  50% {
+    transform: rotate(3deg);
+  }
+}
+.sail {
+  animation: 3s ease-in-out infinite sail;
+  transform-origin: bottom center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .blob,
+  .stripes::before,
+  .bob,
+  .float,
+  .orbit,
+  .orbit-rev,
+  .wave,
+  .sail,
+  .pulse-ring {
+    animation: none;
+  }
+}
+
+.scroll-y {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+canvas {
+  touch-action: none;
+}
