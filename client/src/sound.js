@@ -59,7 +59,7 @@ export const sfx = {
   countdown: () => tone(440, 0.12, 'square', 0.08),
   countdownGo: () => tone(880, 0.35, 'square', 0.1),
   win: () => [523, 659, 784, 1047].forEach((f, i) => later(i * 90, () => tone(f, 0.18, 'triangle', 0.1))),
-  drink: () => {
+  penalty: () => {
     tone(200, 0.4, 'sawtooth', 0.1, 80);
     noise(0.3, 0.08);
   },

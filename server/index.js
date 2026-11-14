@@ -30,7 +30,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/health') {
     res.writeHead(200, { 'content-type': 'application/json' });
-    return res.end(JSON.stringify({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) }));
+    return res.end(JSON.stringify({ ok: true, version: '0.2.0', scoring: 'points', rooms: rooms.size, uptime: Math.round(process.uptime()) }));
   }
   if (url.pathname === '/api/info') {
     res.writeHead(200, { 'content-type': 'application/json' });
@@ -159,12 +159,7 @@ const handlers = {
   'game:input'(c, inp) {
     c.room?.input(c.playerId, inp, Date.now());
   },
-  'drink:judge'(c, d = {}) {
-    c.room?.judgeDrink(who(c), d);
-  },
-  'drink:reassign'(c, d = {}) {
-    c.room?.reassignJudge(c.playerId, d);
-  },
+
   'mission:claim'(c) {
     c.room?.claimMission(c.playerId);
   },

@@ -179,25 +179,7 @@ export function Toggle({ on, onChange, label, sub, className = '' }) {
   );
 }
 
-export function DrinksSwitch() {
-  const { noDrinks } = useStore();
-  return (
-    <button
-      type="button"
-      onClick={() => {
-        api.setNoDrinks(!noDrinks);
-        sfx.pop();
-      }}
-      className="press flex items-center gap-2 rounded-full border-[3px] border-black px-3 py-1.5 font-display font-black text-sm shadow-hard-sm"
-      style={{ background: noDrinks ? '#2a2a40' : HEX.yellow, color: noDrinks ? '#fff' : '#000' }}
-    >
-      <span className={`flex h-5 w-9 items-center rounded-full bg-black px-0.5 ${noDrinks ? 'justify-end' : 'justify-start'}`}>
-        <span className="h-3.5 w-3.5 rounded-full bg-white" />
-      </span>
-      {noDrinks ? T.drinksOff : T.drinksOn}
-    </button>
-  );
-}
+
 
 export function Menu({ extra }) {
   const [open, setOpen] = useState(false);
@@ -235,12 +217,11 @@ export function Menu({ extra }) {
   );
 }
 
-export function TopBar({ left, right, drinks }) {
+export function TopBar({ left, right }) {
   return (
     <div className="safe-top relative z-30 flex items-center justify-between gap-2 px-4 pb-2">
       <div className="flex min-w-0 items-center gap-2">{left}</div>
       <div className="flex items-center gap-2">
-        {drinks && <DrinksSwitch />}
         {right}
       </div>
     </div>
@@ -329,7 +310,7 @@ export function useMetas() {
   }, []);
   return m ?? { list: [], metaById: {}, lanUrls: [] };
 }
-export const rule = (meta, dry) => (dry ? meta?.ruleDry : meta?.rule);
+export const rule = (meta) => meta?.rule;
 
 export function useMemoNames(snap) {
   return useMemo(() => playerMap(snap), [snap]);

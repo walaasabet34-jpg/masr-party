@@ -29,7 +29,7 @@ async function until(fn, ms = 15000) {
   throw new Error('timeout waiting');
 }
 
-test('full party flow with display host, 3 phones, reconnect and drinks', async (t) => {
+test('full party flow with display host, 3 phones, reconnect and points', async (t) => {
   const srv = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: String(PORT) }, stdio: 'pipe' });
   t.after(() => srv.kill());
   await sleep(600);
@@ -84,27 +84,23 @@ test('full party flow with display host, 3 phones, reconnect and drinks', async 
     assert.equal(res.gameId, gid);
     if (gid === 'most-likely-to') assert.deepEqual(res.losers, [phones[2].id]); // votes can change until the vote closes; the last one counts
     if (gid !== 'roulette') assert.ok(res.losers.length >= 1, res.headline);
-    // losers cannot ready up before their drink is judged
+    // Scores are final immediately; a losing player can ready without any extra step.
     const loser = phones.find((p) => p.id === res.losers[0]);
+    assert.equal(res.points[loser.id], -1);
     loser.emit('player:ready'); await sleep(150);
-    assert.ok(!tv.snap.ready.includes(loser.id));
-    for (const a of res.assignments) {
-      const judge = phones.find((p) => p.id === a.judge);
-      if (judge) judge.emit('drink:judge', { kind: 'round', id: a.playerId, yes: true });
-      else tv.emit('drink:judge', { kind: 'round', id: a.playerId, yes: true });
-    }
-    await until(() => tv.snap.lastResult.assignments.every((a) => a.resolved !== 'pending'));
+    assert.ok(tv.snap.ready.includes(loser.id));
     assert.equal(tv.snap.round, round);
   }
   // inputs outside of play are ignored, end the night shows awards
   tv.emit('room:end');
   await until(() => tv.snap.phase === 'ended');
-  assert.ok(tv.snap.awards.length >= 2);
+  assert.ok(tv.snap.awards.some((a) => a.key.startsWith('champion-')));
+  assert.ok(tv.snap.awards.every((a) => tv.snap.players.some((p) => p.id === a.pid)));
   tv.emit('room:lobby');
   await until(() => tv.snap.phase === 'lobby');
 });
 
-test('boat: deal, parts 1-3 turn order and drinking', async (t) => {
+test('boat: deal, parts 1-3 turn order and automatic points', async (t) => {
   const port = PORT + 1;
   const srv = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: String(port) }, stdio: 'pipe' });
   t.after(() => srv.kill());
@@ -132,14 +128,12 @@ test('boat: deal, parts 1-3 turn order and drinking', async (t) => {
     cur.emit('boat:act', { type: 'pick', pick: opt });
     await until(() => host.snap.boat.pending);
     const p = host.snap.boat.pending;
-    if (p.stage === 'give') cur.emit('boat:act', { type: 'give', to: b.turn === r.playerId ? g.playerId : r.playerId });
-    await until(() => host.snap.boat.pending?.stage === 'drink');
-    byId[host.snap.boat.pending.to].emit('boat:act', { type: 'drank' });
     await until(() => !host.snap.boat.pending);
   }
   const s = host.snap.boat;
   assert.equal(s.part, 4);
   assert.equal(s.hands[r.playerId].length, 3);
-  const total = Object.values(s.sips).reduce((a, x) => a + x.drunk, 0);
-  assert.equal(total, 2 * (1 + 2 + 3));
+  const guesses = s.log.filter((x) => x.t === 'guess');
+  const total = guesses.reduce((sum, x) => sum + (x.right ? x.part : -1), 0);
+  assert.equal(Object.values(s.points).reduce((a, x) => a + x, 0), total);
 });

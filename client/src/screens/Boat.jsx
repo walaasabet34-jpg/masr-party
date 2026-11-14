@@ -9,11 +9,11 @@ import { sfx, haptic } from '../sound.js';
 
 const PART_TITLE = ['', 'أحمر ولا إسود', 'أعلى ولا أوطى', 'جوه ولا برة', 'الهرم', 'المركب'];
 const RULES = {
-  1: ['واحد ورا التاني، خمّن لون ورقتك الجاية.', 'صح ← وزّع شفطة · غلط ← اشرب شفطة', 'خلّي ورقك معاك. هتحتاجه بعدين.'],
-  2: ['الورقة الجاية هتبقى أعلى ولا أوطى من أول ورقة معاك؟', 'صح ← وزّع ٢ · غلط ← اشرب ٢', 'نفس الرقم يتحسب غلط. الآص أعلى حاجة.'],
-  3: ['الورقة الجاية هتيجي بين ورقتينك، برة، ولا بالظبط على الطرف؟', 'صح ← وزّع ٣ · غلط ← اشرب ٣', 'خلّي ورقك معاك. هتحتاجه بعدين.'],
-  4: ['الكل مع بعض. ٥ صفوف بتتقلب ورا بعض: ٥، ٤، ٣، ٢، ١ ورقة.', 'عندك ورقة بنفس رقم ورقة في الصف؟ حطها ووزّع شفطات.', 'الصف الأول بشفطتين للورقة، وكل صف +١. اللي يفضل معاه أكتر ورق يركب المركب.'],
-  5: ['كوتشينة جديدة. ٥ ورق مقلوب. خمّنوا أعلى ولا أوطى، مع بعض.', 'غلطت في الورقة التالتة؟ اشرب ٣. استنى الباقيين، وبعدين الكل يبدأ من أول ورقة.', 'عدّي الخمسة عشان تنزل. اللعبة بتخلص لما الكل ينزل أو الكوتشينة تخلص.'],
+  1: ['خمّن لون ورقتك: أحمر ولا إسود.', 'صح +١ نقطة، غلط −١. النتيجة بتظهر وبعدين الدور ينتقل تلقائيًا.'],
+  2: ['الورقة الجاية أعلى ولا أوطى من أول ورقة؟ الآص أعلى حاجة.', 'صح +٢ نقطة، غلط أو نفس الرقم −١.'],
+  3: ['الورقة الجاية جوه ورقتينك، برة، ولا على الطرف؟', 'صح +٣ نقط، غلط −١.'],
+  4: ['حط ورقة من إيدك مطابقة لرقم أي ورقة في الصف الحالي.', 'كل ورقة تكسبك رقم الصف: من ١ لـ٥ نقط. كل ورقة بتتحسب مرة.', 'اللي يفضل معاه أكتر ورق يركب المركب.'],
+  5: ['خمّن أعلى ولا أوطى من ورقة المركب. الغلط أو انتهاء الوقت −١ نقطة.', 'عدّي الخمس ورقات عشان تنزل وتكسب +٣ نقط.', 'لو وقعت، استنى الباقيين وبعدين ابدأ من الأول. الرصيد ممكن يبقى بالسالب.'],
 };
 const PICK_LABEL = { red: 'أحمر ♥', black: 'إسود ♠', higher: 'أعلى ⬆', lower: 'أوطى ⬇', between: 'بين', outside: 'برة', on: 'على الطرف' };
 const PICKS = { 1: ['red', 'black'], 2: ['higher', 'lower'], 3: ['between', 'outside', 'on'] };
@@ -42,7 +42,7 @@ function RulesCard({ b, big }) {
   );
 }
 
-function Sips({ snap }) {
+function Scores({ snap }) {
   const P = playerMap(snap);
   const b = snap.boat;
   return (
@@ -51,8 +51,7 @@ function Sips({ snap }) {
         <div key={id} className="flex items-center gap-1.5 rounded-2xl bg-black/40 px-2 py-1 text-sm">
           <Avatar p={P[id]} size={24} />
           <span className="font-display font-black">{P[id]?.name}</span>
-          <span>🍺{b.sips[id].drunk}</span>
-          <span className="text-ink-muted">🎁{b.sips[id].given}</span>
+          <span className="text-lime">⭐ {b.points[id]} نقطة</span>
         </div>
       ))}
     </div>
@@ -71,7 +70,7 @@ function PendingBanner({ snap }) {
           {P[p.pid]?.name}: {PICK_LABEL[p.pick]} — {p.right ? 'صح!' : 'غلط!'}
         </div>
         <div className="font-display font-bold">
-          {p.stage === 'give' ? `بيختار مين يشرب ${p.label}…` : `${P[p.to]?.name} يشرب ${p.label} · مستنيين الـ👍`}
+          {p.delta > 0 ? `+${p.delta}` : p.delta} نقطة · الدور بينتقل تلقائيًا
         </div>
       </div>
     </motion.div>
@@ -83,7 +82,7 @@ function Pyramid({ b, w = 64 }) {
     <div className="flex flex-col-reverse items-center gap-2">
       {b.rows.map((row, r) => (
         <div key={r} className={`flex items-center gap-2 rounded-2xl p-1 ${r === b.row ? 'bg-lime/25 ring-4 ring-lime' : ''}`}>
-          <span className="w-16 text-center text-xs font-black text-ink-muted">{r + 2} لكل ورقة</span>
+          <span className="w-16 text-center text-xs font-black text-ink-muted">{r + 1} نقطة للورقة</span>
           {row.map((c, i) => (
             <Card key={i} txt={c} faceDown={!c} w={w} />
           ))}
@@ -124,7 +123,7 @@ function FlipResult({ snap }) {
       <div className="flex flex-col gap-1">
         {Object.entries(f.res).map(([id, r]) => (
           <span key={id} className={`rounded-full px-2 font-display font-black text-sm ${r.right ? 'bg-lime text-black' : 'bg-red text-white'}`}>
-            {P[id]?.name} {r.right ? '✓' : `✗ اشرب ${f.idx + 1}`}
+            {P[id]?.name} {r.right ? '✓' : '✗ −١ نقطة'}
           </span>
         ))}
       </div>
@@ -210,13 +209,13 @@ export function BoatBig({ snap }) {
           </div>
           <div className="flex flex-col gap-4">
             <PendingBanner snap={snap} />
-            <Sips snap={snap} />
+            <Scores snap={snap} />
           </div>
         </div>
       ) : b.stage === 'pyramid' ? (
         <div className="grid grid-cols-[1fr_380px] gap-6">
           <div className="flex flex-col items-center gap-4">
-            <div className="font-display font-black text-3xl">صف {b.row + 1} من ٥ · {b.row + 2} شفطات للورقة</div>
+            <div className="font-display font-black text-3xl">صف {b.row + 1} من ٥ · {b.row + 1} نقطة للورقة</div>
             <TimeBar endsAt={b.rowEndsAt} total={30000} color="cyan" />
             <Pyramid b={b} w={70} />
           </div>
@@ -224,11 +223,11 @@ export function BoatBig({ snap }) {
             <div className="font-display font-black text-xl">الصف ده</div>
             {b.laid.filter((l) => l.row === b.row).map((l, i) => (
               <div key={i} className="flex items-center gap-2 rounded-2xl bg-black/40 p-2">
-                <Avatar p={P[l.pid]} size={26} /> <Card txt={l.card} w={30} /> ← <Avatar p={P[l.to]} size={26} /> <span className="font-display font-black">{P[l.to]?.name} يشرب {l.n}</span>
+                <Avatar p={P[l.pid]} size={26} /> <Card txt={l.card} w={30} /> <span className="font-display font-black">{P[l.pid]?.name} كسب +{l.n} نقطة</span>
               </div>
             ))}
             {!b.laid.some((l) => l.row === b.row) && <div className="text-ink-muted">محدش حط ورق لسه…</div>}
-            <Sips snap={snap} />
+            <Scores snap={snap} />
             {control(snap) && (
               <Btn color="cyan" onClick={() => api.boat({ type: 'force' })}>
                 اقلب الصف اللي بعده
@@ -239,7 +238,7 @@ export function BoatBig({ snap }) {
       ) : (
         <div className="flex flex-col items-center gap-5">
           <div className="font-display font-black text-3xl">
-            ورقة {b.idx + 1} من ٥ · الغلط = {b.idx + 1} · محاولة {b.attempts}
+            ورقة {b.idx + 1} من ٥ · الغلط = −١ نقطة · محاولة {b.attempts}
           </div>
           <BoatTrack b={b} w={90} />
           <FlipResult snap={snap} />
@@ -321,7 +320,7 @@ export function BoatPhone({ snap }) {
           <div className="flex flex-wrap gap-2">
             {b.myHand.map((c, i) => {
               const match = b.stage === 'pyramid' && (b.rowRanks[b.row] ?? []).includes(c.r);
-              return <Card key={i} txt={c.txt} w={58} glow={match} dim={b.stage === 'pyramid' && !match} onClick={match ? () => setPlacing(i) : undefined} />;
+              return <Card key={i} txt={c.txt} w={58} glow={match} dim={b.stage === 'pyramid' && !match} onClick={match ? () => api.boat({ type: 'place', i, card: c.txt }) : undefined} />;
             })}
           </div>
         </div>
@@ -346,31 +345,13 @@ export function BoatPhone({ snap }) {
             </div>
           )}
           {b.pending && <PendingBanner snap={snap} />}
-          {b.pending?.stage === 'give' && b.pending.pid === me && (
-            <div className="flex flex-col gap-2">
-              <div className="font-display font-black text-xl">وزّع {b.pending.label} على…</div>
-              <Chooser onPick={(id) => api.boat({ type: 'give', to: id })} />
-              <button type="button" onClick={() => api.boat({ type: 'keep' })} className="text-sm text-ink-muted underline">
-                عدّيها، محدش يشرب
-              </button>
-            </div>
-          )}
-          {b.pending?.stage === 'drink' && b.pending.to === me && (
-            <Btn color="red" size="xl" className="w-full" onClick={() => api.boat({ type: 'drank' })}>
-              شربت {b.pending.label} 🍺
-            </Btn>
-          )}
-          {b.pending?.stage === 'drink' && b.pending.to !== me && control(snap) && (
-            <Btn size="sm" color="dark" onClick={() => api.boat({ type: 'drank' })}>
-              {P[b.pending.to]?.name} شرب ✓
-            </Btn>
-          )}
+
         </>
       )}
       {b.stage === 'pyramid' && (
         <>
           <div className="rounded-3xl bg-black/30 p-3 text-center">
-            <div className="font-display font-black">صف {b.row + 1} من ٥ · {b.row + 2} للورقة</div>
+            <div className="font-display font-black">صف {b.row + 1} من ٥ · {b.row + 1} نقطة للورقة</div>
             <div className="mt-2 flex justify-center gap-1.5">
               {(b.rows[b.row] ?? []).map((c, i) => (
                 <Card key={i} txt={c} w={44} />
@@ -380,29 +361,9 @@ export function BoatPhone({ snap }) {
               <TimeBar endsAt={b.rowEndsAt} total={30000} color="cyan" />
             </div>
           </div>
-          {placing !== null && b.myHand[placing] ? (
-            <div className="flex flex-col gap-2">
-              <div className="font-display font-black text-xl">
-                حط {b.myHand[placing].txt}: وزّع {b.row + 2} على…
-              </div>
-              <Chooser
-                onPick={(id) => {
-                  api.boat({ type: 'place', i: placing, to: id });
-                  setPlacing(null);
-                  sfx.pop();
-                }}
-              />
-              <button type="button" onClick={() => setPlacing(null)} className="text-sm text-ink-muted underline">
-                {T.back}
-              </button>
-            </div>
-          ) : (
-            <div className="text-center text-ink-muted">{(b.rowRanks[b.row] ?? []).some((r) => b.myHand.some((c) => c.r === r)) ? 'دوس على ورقة منوّرة عشان تحطها' : 'مفيش ورقة زيها في الصف ده'}</div>
-          )}
-          {b.laid.filter((l) => l.row === b.row && l.to === me).map((l, i) => (
-            <div key={i} className="rounded-2xl bg-red p-2 text-center font-display font-black text-white">
-              {P[l.pid]?.name} وزّع عليك {l.n} 🍺
-            </div>
+          <div className="text-center text-ink-muted">دوس على ورقة منوّرة عشان تحطها وتكسب +{b.row + 1} نقطة.</div>
+          {b.laid.filter((l) => l.row === b.row && l.pid === me).map((l, i) => (
+            <div key={i} className="rounded-2xl bg-lime p-2 text-center font-display font-black text-black">كسبت +{l.n} نقطة</div>
           ))}
           {b.myHand.length === 0 && <div className="rounded-2xl bg-lime p-3 text-center font-display font-black text-black">إيدك فاضية. انت بأمان من المركب!</div>}
         </>
@@ -412,7 +373,7 @@ export function BoatPhone({ snap }) {
           <BoatTrack b={b} w={52} />
           <FlipResult snap={snap} />
           {b.off.includes(me) ? (
-            <div className="rounded-3xl bg-lime p-4 text-center font-display font-black text-2xl text-black">نزلت من المركب! 🏝️</div>
+            <div className="rounded-3xl bg-lime p-4 text-center font-display font-black text-2xl text-black">نزلت من المركب! +٣ نقط 🏝️</div>
           ) : !b.crew.includes(me) ? (
             <div className="rounded-3xl bg-black/30 p-4 text-center">
               <div className="font-display font-black text-xl">على البر بأمان</div>
@@ -426,7 +387,7 @@ export function BoatPhone({ snap }) {
           ) : b.riders.includes(me) && !b.flip ? (
             <div className="mt-auto flex flex-col gap-3">
               <div className="text-center font-display font-black text-xl">
-                ورقة {b.idx + 1} من ٥ · الغلط = {b.idx + 1} {!b.boatCards[b.idx] && '· تخمين أعمى'}
+                ورقة {b.idx + 1} من ٥ · الغلط = −١ نقطة {!b.boatCards[b.idx] && '· تخمين أعمى'}
               </div>
               {b.myGuess ? (
                 <div className="rounded-3xl bg-lime py-4 text-center font-display font-black text-2xl text-black">قفلت: {PICK_LABEL[b.myGuess]}</div>
@@ -446,7 +407,7 @@ export function BoatPhone({ snap }) {
         </>
       )}
       <div className="mt-auto pt-2">
-        <Sips snap={snap} />
+        <Scores snap={snap} />
       </div>
     </div>
   );

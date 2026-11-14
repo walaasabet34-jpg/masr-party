@@ -2,7 +2,6 @@
 import { randomBytes } from 'node:crypto';
 import { GAMES, getGame, META } from './games/index.js';
 import { rng, shuffle, cleanText } from './lib/util.js';
-import { penaltyFor } from './penalty.js';
 import { MISSIONS } from './content/missions.js';
 import { Chat } from './chat.js';
 import { createBoat, boatTick, boatAct, boatView, boatAwards, BOAT_MAX } from './boat.js';
@@ -16,7 +15,7 @@ const token = () => randomBytes(16).toString('hex');
 const pid = () => 'p' + randomBytes(5).toString('hex');
 
 export class Room {
-  constructor(code, { mode = 'medium', format = 'party', noDrinks = false } = {}) {
+  constructor(code, { mode = 'medium', format = 'party' } = {}) {
     this.code = code;
     this.createdAt = Date.now();
     this.lastActive = Date.now();
@@ -25,7 +24,6 @@ export class Room {
     this.settings = {
       mode: ['lite', 'medium', 'hardcore'].includes(mode) ? mode : 'medium',
       format: format === 'boat' ? 'boat' : 'party',
-      noDrinks: !!noDrinks && format !== 'boat',
       enabledGames: [],
       totalRounds: 10,
       missions: false,
@@ -42,7 +40,6 @@ export class Room {
     this.lastResult = null;
     this.ready = [];
     this.steps = {};
-    this.sideDrinks = [];
     this.missions = {};
     this.claims = [];
     this.seen = new Set();
@@ -69,9 +66,7 @@ export class Room {
   isHost(id) {
     return !!id && id === this.hostId;
   }
-  canDrink(p) {
-    return !!p && !p.sober && !this.settings.noDrinks;
-  }
+
   maxPlayers() {
     return this.settings.format === 'boat' ? BOAT_MAX : PARTY_MAX;
   }
@@ -97,13 +92,12 @@ export class Room {
       name: 'لاعب',
       color: COLORS[this.players.length % COLORS.length],
       sticker: '🐙',
-      sober: false,
       connected: true,
       awaySince: null,
       excluded: false,
       late: this.phase === 'boat' || this.phase === 'playing' || this.phase === 'intro',
       joinedAt: Date.now(),
-      stats: { drinks: 0, sips: 0, points: 0, rouletteHits: 0, reflexWins: 0, wins: 0, missionsDone: 0 },
+      stats: { points: 0, rouletteHits: 0, reflexWins: 0, wins: 0, missionsDone: 0 },
     };
     this.applyLook(p, info);
     this.players.push(p);
@@ -119,7 +113,6 @@ export class Room {
     if (name) p.name = name;
     if (COLORS.includes(info.color)) p.color = info.color;
     if (typeof info.sticker === 'string' && [...info.sticker].length <= 3) p.sticker = info.sticker;
-    if (typeof info.sober === 'boolean' && this.phase === 'lobby') p.sober = info.sober;
   }
 
   setConnected(id, on) {
@@ -161,10 +154,8 @@ export class Room {
     if (ROUND_OPTIONS.includes(patch.totalRounds) && (patch.totalRounds === 0 || patch.totalRounds > this.round)) s.totalRounds = patch.totalRounds;
     if (typeof patch.missions === 'boolean' && this.phase === 'lobby') s.missions = patch.missions;
     if (typeof patch.locked === 'boolean') s.locked = patch.locked;
-    if (typeof patch.noDrinks === 'boolean' && this.phase === 'lobby' && s.format === 'party') s.noDrinks = patch.noDrinks;
     if (patch.format && this.phase === 'lobby' && ['party', 'boat'].includes(patch.format)) {
       s.format = patch.format;
-      if (s.format === 'boat') s.noDrinks = false;
     }
     this.touch();
   }
@@ -269,7 +260,6 @@ export class Room {
     if (this.phase !== 'briefing' || this.ready.includes(id)) return;
     const p = this.player(id);
     if (!p) return;
-    if (this.owesDrink(id)) return; // finish your drink first
     this.ready.push(id);
     this.steps[id] = 'ready';
     this.touch();
@@ -282,21 +272,14 @@ export class Room {
     this.touch();
   }
 
-  owesDrink(id) {
-    const a = this.lastResult?.assignments.find((x) => x.playerId === id && x.resolved === 'pending');
-    return !!a || this.sideDrinks.some((d) => d.playerId === id && d.resolved === 'pending');
-  }
-
   waitingOn() {
     const people = this.players.filter((p) => !p.excluded);
-    return people.filter((p) => !this.ready.includes(p.id) || this.owesDrink(p.id));
+    return people.filter((p) => !this.ready.includes(p.id));
   }
 
   forceStart(by, now) {
     if (!this.canControl(by)) return;
     if (this.phase === 'briefing') {
-      for (const a of this.lastResult?.assignments ?? []) if (a.resolved === 'pending') a.resolved = 'done';
-      for (const d of this.sideDrinks) if (d.resolved === 'pending') d.resolved = 'done';
       this.advanceFromBriefing(now);
     }
   }
@@ -312,7 +295,7 @@ export class Room {
   startGame(now) {
     const g = getGame(this.nextGameId);
     const roster = this.active().filter((p) => p.connected || !p.awaySince || now - p.awaySince < 20000);
-    const players = roster.map((p) => ({ id: p.id, name: p.name, sober: !this.canDrink(p) }));
+    const players = roster.map((p) => ({ id: p.id, name: p.name }));
     const ctx = { rng, players, mode: this.settings.mode, seen: this.seen, now };
     this.game = { id: g.id, roster: players, state: g.setup(ctx), startedAt: now };
     this.round += 1;
@@ -368,23 +351,23 @@ export class Room {
   }
 
   finishGame(now, skipped = false) {
+    if (this.phase !== 'playing' || !this.game) return;
     const g = getGame(this.game.id);
     const ctx = this.gameCtx(now);
-    const res = skipped ? { headline: 'الجولة اتلغت. محدش يشرب المرة دي.', winners: [], losers: [], tier: 'small', points: {}, table: { layout: 'list', rows: [] } } : g.resolve(this.game.state, ctx);
-    const assignments = [];
-    for (const id of res.losers) {
-      const p = this.player(id);
-      if (!p) continue;
-      const tier = res.tierByPlayer?.[id] ?? res.tier;
-      const canDrink = this.canDrink(p);
-      const judge = canDrink ? this.pickJudge(id, res.losers) : null;
-      assignments.push({ playerId: id, tier, penalty: penaltyFor(this.settings.mode, tier, rng), judge, resolved: canDrink ? 'pending' : 'skipped', saidNo: 0 });
-      p.stats.drinks += canDrink ? 1 : 0;
-      if (g.id === 'roulette') p.stats.rouletteHits += 1;
+    const res = skipped ? { headline: 'الجولة اتلغت. مفيش تغيير في النقط.', winners: [], losers: [], points: {}, table: { layout: 'list', rows: [] } } : g.resolve(this.game.state, ctx);
+    const changes = {};
+    const deductions = {};
+    for (const p of this.game.roster) {
+      const earned = Number(res.points?.[p.id] ?? 0);
+      const deduction = !skipped && g.id !== 'roulette' && res.losers.includes(p.id) ? 1 : 0;
+      changes[p.id] = earned - deduction;
+      if (deduction) deductions[p.id] = { amount: 1, reason: 'خسرت الجولة حسب قواعد اللعبة' };
+      const player = this.player(p.id);
+      if (player) player.stats.points += changes[p.id];
     }
-    for (const [id, pts] of Object.entries(res.points ?? {})) {
-      const p = this.player(id);
-      if (p) p.stats.points += pts;
+    if (g.id === 'roulette' && !skipped) {
+      const target = this.player(this.game.state.targetId);
+      if (target) target.stats.rouletteHits += 1;
     }
     for (const id of res.winners) {
       const p = this.player(id);
@@ -398,12 +381,12 @@ export class Room {
       headline: res.headline,
       winners: res.winners,
       losers: res.losers,
-      tier: res.tier,
       table: res.table,
       reveal: res.reveal ?? null,
-      points: res.points ?? {},
+      points: changes,
+      earned: res.points ?? {},
+      deductions,
       gallery: res.gallery ?? null,
-      assignments,
       roster: this.game.roster.map((p) => p.id),
     };
     this.history.push({ round: this.round, gameId: g.id, headline: res.headline });
@@ -420,36 +403,6 @@ export class Room {
       this.pickNext();
       this.enterBriefing(now);
     }
-  }
-
-  pickJudge(drinker, losers = []) {
-    const others = this.players.filter((p) => p.id !== drinker && p.connected && !p.excluded);
-    const sober = others.filter((p) => !losers.includes(p.id));
-    const pool = sober.length ? sober : others;
-    return pool.length ? pool[Math.floor(rng() * pool.length)].id : null;
-  }
-
-  judgeDrink(by, { kind, id, yes }) {
-    const item = kind === 'side' ? this.sideDrinks.find((d) => d.id === id) : this.lastResult?.assignments.find((a) => a.playerId === id);
-    if (!item || item.resolved !== 'pending') return;
-    const allowed = this.canControl(by) || by === item.judge || (!item.judge && by !== item.playerId);
-    if (!allowed) return;
-    if (yes) {
-      item.resolved = 'done';
-      const p = this.player(item.playerId);
-      if (p) p.stats.sips += item.penalty.kind === 'sip' ? item.penalty.count : item.penalty.kind === 'shot' ? 3 : 6;
-    } else item.saidNo = (item.saidNo ?? 0) + 1;
-    this.touch();
-  }
-
-  // judge went away? hand the job to someone else on request of the drinker
-  reassignJudge(by, { kind, id }) {
-    const item = kind === 'side' ? this.sideDrinks.find((d) => d.id === id) : this.lastResult?.assignments.find((a) => a.playerId === id);
-    if (!item || item.resolved !== 'pending' || item.playerId !== by) return;
-    const j = this.player(item.judge);
-    if (j && j.connected) return;
-    item.judge = this.pickJudge(item.playerId, this.lastResult?.losers);
-    this.touch();
   }
 
   // ------------------------------------------------------------ missions
@@ -473,12 +426,7 @@ export class Room {
     this.claims = this.claims.filter((x) => x !== c);
     if (yes) {
       const from = this.player(c.from);
-      const target = this.player(c.target);
       if (from) from.stats.missionsDone += 1;
-      if (target && this.canDrink(target)) {
-        this.sideDrinks.push({ id: 's' + randomBytes(3).toString('hex'), playerId: target.id, judge: c.from, penalty: penaltyFor(this.settings.mode, 'small', rng), resolved: 'pending', reason: 'mission', from: c.from, saidNo: 0 });
-        target.stats.drinks += 1;
-      }
       if (from) from.stats.points += 2;
       this.assignMission(c.from);
     }
@@ -487,13 +435,10 @@ export class Room {
 
   // ------------------------------------------------------------ the end
   endNight() {
-    // nothing is left to judge once the night is over
-    for (const a of this.lastResult?.assignments ?? []) if (a.resolved === 'pending') a.resolved = 'skipped';
-    for (const d of this.sideDrinks) if (d.resolved === 'pending') d.resolved = 'skipped';
     this.claims = [];
     if (this.phase === 'boat') {
       this.awards = boatAwards(this.boat, this.players);
-      for (const p of this.players) p.stats.sips = this.boat.sips[p.id]?.drunk ?? 0;
+      for (const p of this.players) p.stats.points = this.boat.points[p.id] ?? 0;
       this.phase = 'ended';
       this.touch();
       return;
@@ -503,15 +448,9 @@ export class Room {
     const awards = [];
     if (ps.length) {
       const champ = best((p) => p.stats.points);
-      awards.push({ key: 'champion', title: 'البطل', icon: '🏆', pid: champ.id, value: `${champ.stats.points} نقطة` });
-      if (!this.settings.noDrinks) {
-        const drunk = best((p) => p.stats.drinks);
-        if (drunk.stats.drinks) awards.push({ key: 'mostDrunk', title: 'أكتر واحد شرب', icon: '🍺', pid: drunk.id, value: `${drunk.stats.drinks} مرة` });
-      }
+      for (const p of ps.filter((p) => p.stats.points === champ.stats.points)) awards.push({ key: 'champion-' + p.id, title: 'البطل', icon: '🏆', pid: p.id, value: `${p.stats.points} نقطة` });
       const fast = best((p) => p.stats.reflexWins);
       if (fast.stats.reflexWins) awards.push({ key: 'fastest', title: 'أسرع صوابع', icon: '⚡', pid: fast.id, value: `${fast.stats.reflexWins} مكسب` });
-      const surv = best((p) => -p.stats.drinks * 100 + p.stats.points);
-      awards.push({ key: 'survivor', title: 'الناجي', icon: '🛟', pid: surv.id, value: this.settings.noDrinks ? `${surv.stats.points} نقطة` : `${surv.stats.drinks} مرة بس` });
       const mag = best((p) => p.stats.rouletteHits);
       if (mag.stats.rouletteHits) awards.push({ key: 'magnet', title: 'مغناطيس الروليت', icon: '🎯', pid: mag.id, value: `${mag.stats.rouletteHits}×` });
       const agent = best((p) => p.stats.missionsDone);
@@ -540,7 +479,6 @@ export class Room {
     this.awards = null;
     this.ready = [];
     this.steps = {};
-    this.sideDrinks = [];
     this.claims = [];
     this.missions = {};
     this.recent = [];
@@ -548,7 +486,7 @@ export class Room {
     for (const p of this.players) {
       p.late = false;
       p.excluded = false;
-      p.stats = { drinks: 0, sips: 0, points: 0, rouletteHits: 0, reflexWins: 0, wins: 0, missionsDone: 0 };
+      p.stats = { points: 0, rouletteHits: 0, reflexWins: 0, wins: 0, missionsDone: 0 };
     }
     this.touch();
   }
@@ -566,7 +504,6 @@ export class Room {
       rng,
       connected: (id) => !!this.player(id)?.connected,
       isHost: (id) => this.canControl(id),
-      skipDrink: (id) => !this.canDrink(this.player(id)),
     };
   }
   boatAction(by, act, now) {
@@ -599,12 +536,11 @@ export class Room {
         name: p.name,
         color: p.color,
         sticker: p.sticker,
-        sober: p.sober,
         connected: p.connected,
         awayFor: p.awaySince ? now - p.awaySince : 0,
         excluded: p.excluded,
         late: p.late,
-        stats: { drinks: p.stats.drinks, points: p.stats.points, sips: p.stats.sips },
+        stats: { points: this.phase === 'boat' ? this.boat.points[p.id] ?? 0 : p.stats.points },
       })),
       phaseEndsAt: this.phaseEndsAt,
       currentGameId: this.game?.id ?? null,
@@ -617,7 +553,6 @@ export class Room {
       ready: this.ready,
       steps: this.steps,
       waitingOn: this.phase === 'briefing' ? this.waitingOn().map((p) => p.id) : [],
-      sideDrinks: this.sideDrinks.filter((d) => d.resolved === 'pending'),
       mission: me && this.missions[me] ? { ...this.missions[me], claimed: this.claims.some((c) => c.from === me) } : null,
       claims: me ? this.claims.filter((c) => c.target === me) : [],
       history: this.history.slice(-30),

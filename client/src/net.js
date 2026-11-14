@@ -30,10 +30,9 @@ let state = {
   error: null,
   closed: null,
   clockOffset: 0,
-  identity: LS.get('identity') ?? { name: '', ...randomLook(), sober: false },
+  identity: LS.get('identity') ?? { name: '', ...randomLook() },
   session: LS.get('session'), // { code, role, playerId, token, displayToken }
   muted: LS.get('muted', false),
-  noDrinks: LS.get('noDrinks', false),
   resuming: !!LS.get('session'),
   // chat
   chat: [], // messages from the server, sorted by id
@@ -237,7 +236,7 @@ async function resume() {
 // ------------------------------------------------------------------ actions
 const look = () => {
   const i = state.identity;
-  return { name: i.name, color: i.color, sticker: i.sticker, sober: !!i.sober };
+  return { name: i.name, color: i.color, sticker: i.sticker };
 };
 
 export const api = {
@@ -257,10 +256,7 @@ export const api = {
     LS.set('muted', !state.muted);
     set({ muted: !state.muted });
   },
-  setNoDrinks(v) {
-    LS.set('noDrinks', v);
-    set({ noDrinks: v });
-  },
+
   async peek(code) {
     return request('room:peek', { code });
   },
@@ -292,8 +288,6 @@ export const api = {
   ready: () => emit('player:ready'),
   step: (s) => emit('player:step', s),
   input: (inp) => emit('game:input', { ...inp, t: now() }),
-  judge: (kind, id, yes) => emit('drink:judge', { kind, id, yes }),
-  reassign: (kind, id) => emit('drink:reassign', { kind, id }),
   claimMission: () => emit('mission:claim'),
   answerClaim: (id, yes) => emit('mission:answer', id, yes),
   exclude: (id) => emit('room:exclude', id),

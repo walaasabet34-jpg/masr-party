@@ -65,7 +65,6 @@ test('late joiner sits out the running round and plays the next one', () => {
   r.tick(60000); // timer runs out
   assert.equal(r.phase, 'briefing');
   assert.ok(!late.late);
-  for (const a of r.lastResult.assignments) a.resolved = 'done';
   play(r, 70000);
   assert.ok(r.game.roster.some((p) => p.id === late.id));
 });
@@ -89,32 +88,23 @@ test('phone host leaving closes the party', () => {
   assert.equal(r.closed, 'host_left');
 });
 
-test('sober players and no-drinks parties never get a drink, but still score', () => {
+test('points are applied once; losing does not block readiness and scores may be negative', () => {
   const { r, ps } = mk(3);
-  ps[0].sober = true;
   r.updateSettings('display', { enabledGames: ['most-likely-to'], totalRounds: 0 });
-  r.start('display', 0);
-  play(r, 0);
+  r.start('display', 0); play(r, 0);
   for (const p of ps) r.input(p.id, { type: 'vote', payload: ps[0].id }, 5000);
   r.tick(5100);
-  const a = r.lastResult.assignments.find((x) => x.playerId === ps[0].id);
-  assert.equal(a.resolved, 'skipped');
-  assert.ok(!r.owesDrink(ps[0].id));
-
-  const dry = mk(3, { noDrinks: true }).r;
-  dry.updateSettings('display', { enabledGames: ['most-likely-to'], totalRounds: 0 });
-  dry.start('display', 0);
-  play(dry, 0);
-  const [x, y, z] = dry.players;
-  for (const p of dry.players) dry.input(p.id, { type: 'vote', payload: x.id }, 5000);
-  dry.tick(5100);
-  assert.ok(dry.lastResult.assignments.every((q) => q.resolved === 'skipped'));
-  assert.equal(y.stats.points, 1);
-  assert.equal(x.stats.points, 0);
-  void z;
+  assert.equal(ps[0].stats.points, -1);
+  assert.equal(ps[1].stats.points, 1);
+  assert.equal(r.lastResult.points[ps[0].id], -1);
+  assert.equal(r.lastResult.deductions[ps[0].id].amount, 1);
+  r.finishGame(5200); // duplicate completion must be harmless
+  assert.equal(ps[0].stats.points, -1);
+  r.playerReady(ps[0].id);
+  assert.ok(r.ready.includes(ps[0].id));
 });
 
-test('intensity changes the drink and the content pool', () => {
+test('intensity filters content; roulette applies one signed points card', () => {
   const g = getGame('most-likely-to');
   const seen = new Set();
   for (let i = 0; i < 200; i++) {
@@ -129,11 +119,12 @@ test('intensity changes the drink and the content pool', () => {
   for (const [i, p] of ps.entries()) r.input(p.id, { type: 'pick', payload: i + 1 }, 5000);
   r.tick(5100);
   assert.equal(r.nextGameId, 'roulette');
-  for (const a of r.lastResult.assignments) a.resolved = 'done';
   play(r, 6000);
   r.tick(10000); // intro over, wheel set up
   r.tick(10100); // wheel starts spinning
   r.tick(17000); // wheel stopped
   assert.equal(r.lastResult.gameId, 'roulette');
-  assert.equal(r.lastResult.assignments[0].penalty.label, 'الكاس كله');
+  const changed = Object.values(r.lastResult.points).filter((n) => n !== 0);
+  assert.equal(changed.length, 1);
+  assert.ok([2, 3, -1, -2].includes(changed[0]));
 });

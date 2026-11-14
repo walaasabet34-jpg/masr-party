@@ -1,5 +1,5 @@
-// Ranking + "who drinks" logic shared by every scored mini-game.
-// A score row: { id, status: 'ok'|'foul'|'out', primary, tiebreak?, group?, forceDrink?, facts? }
+// Ranking + outcome logic shared by every scored mini-game.
+// A score row: { id, status: 'ok'|'foul'|'out', primary, tiebreak?, group?, forceLoss?, facts? }
 // opts: { better: 'higher'|'lower', allTied: 'everyone'|'nobody', deadHeat?: 'primary' }
 
 const STATUS = { ok: 0, foul: 1, out: 2 };
@@ -55,15 +55,15 @@ export function rank(rows, opts) {
     losers.push(...last);
     winners.push(...ok.filter((r) => r.place === top && !last.includes(r.id)).map((r) => r.id));
   }
-  const forced = rows.filter((r) => r.forceDrink && !losers.includes(r.id)).map((r) => r.id);
+  const forced = rows.filter((r) => r.forceLoss && !losers.includes(r.id)).map((r) => r.id);
   return {
     rows: ranked,
-    winners: winners.filter((id) => !rows.some((r) => r.id === id && r.forceDrink)),
+    winners: winners.filter((id) => !rows.some((r) => r.id === id && r.forceLoss)),
     losers: [...losers, ...forced],
   };
 }
 
-// Points for the no-drinks scoreboard (also shown in every results table).
+// Earned points for the scoreboard (also shown in every results table).
 export const POINTS = {
   podium: [
     [3, 'المركز الأول'],

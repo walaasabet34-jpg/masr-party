@@ -533,7 +533,7 @@ export default {
   'quip-clash': quipClash,
   'doodle-duel': doodleDuel,
   'big-fat-lie': bigFatLie,
-  'drunk-telephone': telephone,
+  'broken-telephone': telephone,
   'herd-mentality': herd,
   'hot-take': hotTake,
 };

@@ -17,7 +17,7 @@ function Row({ r, p, lost, i, pts }) {
         {r.why && <div className={`truncate text-xs ${lost ? 'text-white/80' : 'text-black/60'}`}>{r.why}</div>}
       </div>
       <span className="font-display font-black tabular text-sm">{r.value}</span>
-      {pts !== undefined && <span className={`rounded-full border-2 border-black px-2 font-display font-black text-xs ${lost ? 'bg-black/30' : 'bg-lime'}`}>+{pts}</span>}
+      {pts !== undefined && <span className={`rounded-full border-2 border-black px-2 font-display font-black text-xs ${lost ? 'bg-black/30' : 'bg-lime'}`}>{pts > 0 ? '+' : ''}{pts} نقطة</span>}
     </motion.div>
   );
 }
@@ -28,7 +28,7 @@ export function ResultTable({ snap, compact }) {
   const P = playerMap(snap);
   const { table } = res;
   const lost = (id) => res.losers.includes(id);
-  const pts = (id) => (snap.settings.noDrinks ? res.points?.[id] : undefined);
+  const pts = (id) => res.points?.[id];
   if (table.layout === 'bars') {
     const max = Math.max(1, ...table.rows.map((r) => r.n ?? 0));
     return (
@@ -39,7 +39,7 @@ export function ResultTable({ snap, compact }) {
             <div className="relative h-9 flex-1 overflow-hidden rounded-xl border-[3px] border-black bg-black/40">
               <motion.div initial={{ width: 0 }} animate={{ width: `${((r.n ?? 0) / max) * 100}%` }} transition={{ delay: 0.1 + i * 0.06, duration: 0.7 }} className="absolute inset-y-0 right-0" style={{ background: lost(r.id) ? HEX.red : HEX.lime }} />
               <span className="relative flex h-full items-center px-2 font-display font-black text-sm" style={{ color: '#fff', textShadow: '0 1px 2px #000' }}>
-                {r.mark} {P[r.id]?.name} · {r.value}
+                {r.mark} {P[r.id]?.name} · {r.value} · {pts(r.id) > 0 ? '+' : ''}{pts(r.id)} نقطة
               </span>
             </div>
           </div>
@@ -59,7 +59,7 @@ export function ResultTable({ snap, compact }) {
               {table.rows
                 .filter((r) => r.group === k)
                 .map((r, i) => (
-                  <Row key={r.id} r={r} p={P[r.id]} lost={lost(r.id)} i={i} pts={pts(r.id)} />
+                  <Row key={r.id} r={{ ...r, why: [r.why, res.deductions?.[r.id]?.reason].filter(Boolean).join(' · ') }} p={P[r.id]} lost={lost(r.id)} i={i} pts={pts(r.id)} />
                 ))}
             </div>
           </div>
@@ -67,7 +67,7 @@ export function ResultTable({ snap, compact }) {
         {loose.length > 0 && (
           <div className="flex flex-col gap-1.5">
             {loose.map((r, i) => (
-              <Row key={r.id} r={r} p={P[r.id]} lost={lost(r.id)} i={i} pts={pts(r.id)} />
+              <Row key={r.id} r={{ ...r, why: [r.why, res.deductions?.[r.id]?.reason].filter(Boolean).join(' · ') }} p={P[r.id]} lost={lost(r.id)} i={i} pts={pts(r.id)} />
             ))}
           </div>
         )}
@@ -77,7 +77,7 @@ export function ResultTable({ snap, compact }) {
   return (
     <div className="flex flex-col gap-1.5">
       {table.rows.map((r, i) => (
-        <Row key={r.id} r={r} p={P[r.id]} lost={lost(r.id)} i={i} pts={pts(r.id)} />
+        <Row key={r.id} r={{ ...r, why: [r.why, res.deductions?.[r.id]?.reason].filter(Boolean).join(' · ') }} p={P[r.id]} lost={lost(r.id)} i={i} pts={pts(r.id)} />
       ))}
     </div>
   );
