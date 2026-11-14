@@ -8,14 +8,12 @@
 
 كل حاجة ظاهرة باللهجة المصرية، والواجهة RTL. محتوى الأسئلة اتعمل من الأول لمصر (أكل، أفلام، كورة، أماكن…).
 
-> ده مشروع مستقل جوه الريبو. ما بيغيّرش أي حاجة في مشروع `app/` أو `dashboard/`.
 
 ## التشغيل محليًا
 
 محتاج Node 20 أو أحدث.
 
 ```bash
-cd masr-party
 npm install
 npm run build      # يبني الواجهة في client/dist
 npm start          # السيرفر على http://localhost:8787
@@ -34,10 +32,10 @@ npm start          # السيرفر على http://localhost:8787
 ## النشر أونلاين (Render — خطة مجانية)
 
 اللعبة محتاجة سيرفر Node شغّال على طول عشان اتصالات WebSocket، فـVercel مش مناسب لها.
-الملف `render.yaml` في أول الريبو بيجهّز خدمة اسمها `masr-party` من الفولدر ده بس (مش بيلمس المشروع القديم):
+الملف `render.yaml` في أول الريبو بيجهّز خدمة اسمها `masr-party`:
 
-1. اعمل حساب على render.com بحساب GitHub، واسمح له يشوف ريبو `atlas-ai`.
-2. افتح: `https://render.com/deploy?repo=https://github.com/walaasabet34-jpg/atlas-ai/tree/claude/egyptian-party-game-multiplayer-v1biee`
+1. اعمل حساب على render.com بحساب GitHub، واسمح له يشوف ريبو `masr-party`.
+2. افتح: `https://render.com/deploy?repo=https://github.com/walaasabet34-jpg/masr-party`
 3. اختار **Apply**. البناء: `npm ci --include=dev && npm run build`، التشغيل: `npm start`، الفحص: `/api/health`.
 4. الرابط هيبقى شكل `https://masr-party-xxxx.onrender.com` وده اللي يتبعت للاعيبة.
 

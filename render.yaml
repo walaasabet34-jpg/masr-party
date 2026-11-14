@@ -1,0 +1,14 @@
+# Render Blueprint: free Node web service (WebSockets supported). Rooms live in memory, so keep one instance.
+services:
+  - type: web
+    name: masr-party
+    runtime: node
+    plan: free
+    branch: main
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
