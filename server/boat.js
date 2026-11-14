@@ -12,7 +12,7 @@ const newDeck = (rng) => shuffle(rng, ['S', 'H', 'D', 'C'].flatMap((s) => Array.
 const isRed = (c) => c.s === 'H' || c.s === 'D';
 export const cardTxt = (c) => `${c.r <= 10 ? c.r : { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' }[c.r]}${{ S: '♠', H: '♥', D: '♦', C: '♣' }[c.s]}`;
 
-function judge(part, hand, card, pick) {
+function isRight(part, hand, card, pick) {
   if (part === 1) return (pick === 'red') === isRed(card);
   if (part === 2) return card.r !== hand[0].r && (pick === 'higher') === card.r > hand[0].r;
   const lo = Math.min(hand[0].r, hand[1].r);
@@ -179,7 +179,7 @@ export function boatAct(b, pid, act, ctx) {
       const deck = [...b.deck];
       const card = deck.shift();
       const hand = b.hands[pid];
-      const right = judge(b.part, hand, card, act.pick);
+      const right = isRight(b.part, hand, card, act.pick);
       const n = b.part;
       let nb = { ...b, deck, hands: { ...b.hands, [pid]: [...hand, card] } };
       nb = addLog(nb, { t: 'guess', pid, part: b.part, pick: act.pick, card: cardTxt(card), right });
