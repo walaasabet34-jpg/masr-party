@@ -1,11 +1,14 @@
-// "المركب" — the card game. Five parts, one deck, sips only.
+// "المركب" — the card game. Five parts, one deck, scored in points.
+// Points: parts 1-3 a right guess earns the part number (1/2/3); pyramid cards earn the row
+// number (1-5); on the boat a wrong guess costs 1 and getting off earns 3.
 // Rules follow the reference game's published rule text (see docs/MATCHING.md for what was inferred).
 import { shuffle } from './lib/util.js';
-import { sipsLabel } from './penalty.js';
 
 export const BOAT_MAX = 12;
 const ROWS = [5, 4, 3, 2, 1];
 const ROW_MS = 30000;
+const SHOW_MS = 2600; // how long a guess result stays up before the next turn
+const OFF_BONUS = 3;
 const GUESS_MS = 30000;
 const PICKS = { 1: ['red', 'black'], 2: ['higher', 'lower'], 3: ['between', 'outside', 'on'] };
 
@@ -32,14 +35,14 @@ export function createBoat(players, rng) {
     deck: newDeck(rng),
     hands: Object.fromEntries(order.map((id) => [id, []])),
     turn: 0,
-    pending: null, // { pid, card, pick, right, n, stage: 'give'|'drink', to }
-    sips: Object.fromEntries(order.map((id) => [id, { drunk: 0, given: 0 }])),
+    pending: null, // { pid, card, pick, right, n, until } — a result on show
+    score: Object.fromEntries(order.map((id) => [id, { points: 0, right: 0, laid: 0, wrong: 0 }])),
     log: [],
     // pyramid
     rows: [],
     row: -1,
     rowEndsAt: null,
-    laid: [], // { pid, card, row, to, n, drank }
+    laid: [], // { pid, card, row, n }
     // boat
     crew: [],
     fate: false,
@@ -60,10 +63,13 @@ export function createBoat(players, rng) {
 }
 
 const addLog = (b, entry) => ({ ...b, log: [...b.log.slice(-29), entry] });
-function drink(b, pid, n, from) {
-  const sips = { ...b.sips, [pid]: { ...b.sips[pid], drunk: b.sips[pid].drunk + n } };
-  if (from) sips[from] = { ...sips[from], given: sips[from].given + n };
-  return { ...b, sips };
+// The only place points move. Each event calls it exactly once.
+function award(b, pid, n, field) {
+  const cur = b.score[pid];
+  if (!cur) return b;
+  const next = { ...cur, points: cur.points + n };
+  if (field) next[field] = cur[field] + 1;
+  return { ...b, score: { ...b.score, [pid]: next } };
 }
 
 function startPart(b, part, now, rng) {
@@ -113,6 +119,7 @@ export function boatTick(b, ctx) {
     if (people.length && people.every((id) => b.ready.includes(id))) return begin(b, now);
     return b;
   }
+  if (b.stage === 'play' && b.pending && now >= b.pending.until) return nextTurn(b, now, ctx.rng);
   if (b.stage === 'pyramid' && now >= b.rowEndsAt) return endRow(b, ctx);
   if (b.stage === 'boat' && b.guessUntil && now >= b.guessUntil && !b.flip) return flipBoat(b, ctx);
   if (b.stage === 'boat' && b.flip && now >= b.flip.until) return afterFlip(b, ctx);
@@ -136,7 +143,7 @@ function flipBoat(b, ctx) {
     const g = b.guesses[id] ?? null;
     const right = g && card.r !== boatCard.r && (g === 'higher') === card.r > boatCard.r;
     res[id] = { guess: g, right: !!right };
-    if (!right) n = drink(n, id, b.idx + 1);
+    if (!right) n = award(n, id, -1, 'wrong');
   }
   const revealed = [...b.revealed];
   revealed[b.idx] = true;
@@ -152,6 +159,7 @@ function afterFlip(b, ctx) {
   const splashed = [...b.splashed, ...fell];
   if (stay.length && b.idx + 1 >= 5) {
     // cleared all five cards
+    for (const id of stay) n = award(n, id, OFF_BONUS);
     n = { ...n, off: [...n.off, ...stay], firstOff: n.firstOff ?? stay[0], riders: [], splashed };
   } else if (stay.length) {
     return { ...n, idx: b.idx + 1, riders: stay, splashed, guessUntil: ctx.now + GUESS_MS };
@@ -181,19 +189,12 @@ export function boatAct(b, pid, act, ctx) {
       const card = deck.shift();
       const hand = b.hands[pid];
       const right = judge(b.part, hand, card, act.pick);
-      const n = b.part;
       let nb = { ...b, deck, hands: { ...b.hands, [pid]: [...hand, card] } };
+      if (right) nb = award(nb, pid, b.part, 'right');
       nb = addLog(nb, { t: 'guess', pid, part: b.part, pick: act.pick, card: cardTxt(card), right });
-      return { ...nb, pending: { pid, card, pick: act.pick, right, n, stage: right ? 'give' : 'drink', to: right ? null : pid } };
+      return { ...nb, pending: { pid, card, pick: act.pick, right, n: right ? b.part : 0, until: ctx.now + SHOW_MS } };
     }
-    const p = b.pending;
-    if (!p) return b;
-    if (t === 'give' && p.stage === 'give' && pid === p.pid && b.order.includes(act.to) && act.to !== pid) {
-      const nb = addLog({ ...b, pending: { ...p, stage: 'drink', to: act.to } }, { t: 'give', pid, to: act.to, n: p.n });
-      return ctx.skipDrink(act.to) ? nextTurn(drink(nb, act.to, 0, null), ctx.now, ctx.rng) : nb;
-    }
-    if (t === 'keep' && p.stage === 'give' && pid === p.pid) return nextTurn(b, ctx.now, ctx.rng);
-    if (t === 'drank' && p.stage === 'drink' && (pid === p.to || isHost)) return nextTurn(drink(b, p.to, p.n, p.right ? p.pid : null), ctx.now, ctx.rng);
+    if (t === 'next' && b.pending && (pid === b.pending.pid || isHost)) return nextTurn(b, ctx.now, ctx.rng);
     return b;
   }
   if (b.stage === 'pyramid' && t === 'place') {
@@ -201,10 +202,11 @@ export function boatAct(b, pid, act, ctx) {
     const i = Number(act.i);
     const card = hand?.[i];
     const rowCards = b.rows[b.row] ?? [];
-    if (!card || !rowCards.some((c) => c.r === card.r) || !b.order.includes(act.to) || act.to === pid) return b;
-    const n = b.row + 2;
-    const nb = { ...b, hands: { ...b.hands, [pid]: hand.filter((_, k) => k !== i) }, laid: [...b.laid, { pid, card: cardTxt(card), row: b.row, to: act.to, n }] };
-    return addLog(drink(nb, act.to, n, pid), { t: 'lay', pid, to: act.to, n, card: cardTxt(card) });
+    if (!card || !rowCards.some((c) => c.r === card.r)) return b;
+    const n = b.row + 1;
+    let nb = { ...b, hands: { ...b.hands, [pid]: hand.filter((_, k) => k !== i) }, laid: [...b.laid, { pid, card: cardTxt(card), row: b.row, n }] };
+    nb = award(nb, pid, n, 'laid');
+    return addLog(nb, { t: 'lay', pid, n, card: cardTxt(card) });
   }
   if (b.stage === 'boat' && t === 'guess' && b.riders.includes(pid) && !b.flip && (act.pick === 'higher' || act.pick === 'lower')) {
     const guesses = { ...b.guesses, [pid]: act.pick };
@@ -226,8 +228,8 @@ export function boatView(b, pid) {
     turn: b.order[b.turn] ?? null,
     hands: visibleHands, // cards are dealt face up in the reference game
     myHand: mine ? mine.map((c) => ({ txt: cardTxt(c), r: c.r, red: isRed(c) })) : null,
-    pending: b.pending ? { ...b.pending, card: cardTxt(b.pending.card), red: isRed(b.pending.card), label: sipsLabel(b.pending.n) } : null,
-    sips: b.sips,
+    pending: b.pending ? { ...b.pending, card: cardTxt(b.pending.card), red: isRed(b.pending.card) } : null,
+    score: b.score,
     log: b.log.slice(-8),
     rows: b.rows.map((r, i) => (i <= b.row ? r.map(cardTxt) : r.map(() => null))),
     rowRanks: b.rows.map((r, i) => (i <= b.row ? r.map((c) => c.r) : [])),
@@ -255,15 +257,16 @@ export function boatView(b, pid) {
 export function boatAwards(b, players) {
   const ids = b.order.filter((id) => players.some((p) => p.id === id));
   if (!ids.length) return [];
-  const by = (f, dir = 1) => [...ids].sort((x, y) => dir * (f(y) - f(x)))[0];
+  const by = (f) => [...ids].sort((x, y) => f(y) - f(x))[0];
+  const sc = (id) => b.score[id];
   const out = [];
-  const thirsty = by((id) => b.sips[id].drunk);
-  out.push({ key: 'thirsty', title: 'البحّار العطشان', icon: '🍺', pid: thirsty, value: `${b.sips[thirsty].drunk} شفطة` });
-  const gen = by((id) => b.sips[id].given);
-  out.push({ key: 'generous', title: 'القبطان الكريم', icon: '🎁', pid: gen, value: `وزّع ${b.sips[gen].given}` });
+  const champ = by((id) => sc(id).points);
+  out.push({ key: 'champion', title: 'القبطان', icon: '🏆', pid: champ, value: `${sc(champ).points} نقطة` });
+  const lucky = by((id) => sc(id).right);
+  if (sc(lucky).right) out.push({ key: 'lucky', title: 'عينه صايبة', icon: '🎯', pid: lucky, value: `${sc(lucky).right} تخمين صح` });
+  const pyr = by((id) => sc(id).laid);
+  if (sc(pyr).laid) out.push({ key: 'pyramid', title: 'ملك الهرم', icon: '🔺', pid: pyr, value: `${sc(pyr).laid} ورقة` });
   if (b.crew.length) out.push({ key: 'seasick', title: 'دوخة البحر', icon: '🤢', pid: b.crew[0], value: `${b.attempts} محاولة` });
-  if (b.firstOff) out.push({ key: 'escape', title: 'أول واحد نزل', icon: '🏝️', pid: b.firstOff, value: 'نِفِد' });
-  const dryest = by((id) => b.sips[id].drunk, -1);
-  out.push({ key: 'dry', title: 'ناشف خالص', icon: '🌵', pid: dryest, value: `${b.sips[dryest].drunk} شفطة بس` });
+  if (b.firstOff) out.push({ key: 'escape', title: 'أول واحد نزل', icon: '🏝️', pid: b.firstOff, value: `+${OFF_BONUS}` });
   return out;
 }

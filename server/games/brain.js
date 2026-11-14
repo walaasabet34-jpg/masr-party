@@ -39,9 +39,8 @@ function race(def) {
       const r = rank(rows, { better: 'lower' });
       const top = r.rows[0]?.status === 'ok' ? r.rows[0] : null;
       return {
-        headline: top ? `${nameOf(ctx.players, top.id)} كسب في ${sec(top.primary)}` : 'محدش خلّص. كله يشرب!',
+        headline: top ? `${nameOf(ctx.players, top.id)} كسب في ${sec(top.primary)}` : 'محدش خلّص. كله ياخد صفر!',
         ...r,
-        tier: 'small',
         points: pointsFrom(r.rows, r.winners, r.losers),
         table: {
           layout: 'list',
@@ -86,7 +85,7 @@ export const colourClash = race({
   durationMs: 30000,
   tagline: 'دوس على لون الحبر، مش الكلمة.',
   howTo: 'هتظهر كلمة لون مكتوبة بلون تاني. دوس على اللون اللي «شايفه» مش اللي «قاريه». ٥ ورا بعض، وكل غلطة بـ٣ ثواني.',
-  rule: 'أبطأ مخ يشرب.',
+  rule: 'أبطأ مخ ياخد صفر.',
   generate(ctx) {
     const r = ctx.rng;
     const qs = [];
@@ -111,7 +110,7 @@ export const quickMath = race({
   durationMs: 35000,
   tagline: 'خمس مسائل. هي صعبة يعني؟',
   howTo: 'خمس مسائل سريعة. دوس على الإجابة الصح بأسرع ما يمكن. كل إجابة غلط بـ٣ ثواني.',
-  rule: 'أبطأ آلة حاسبة تشرب.',
+  rule: 'أبطأ آلة حاسبة تاخد صفر.',
   generate(ctx) {
     const r = ctx.rng;
     const int = (a, b) => a + Math.floor(r() * (b - a + 1));
@@ -156,7 +155,7 @@ export const oddOneOut = race({
   durationMs: 35000,
   tagline: 'واحد فيهم مش زي الباقيين.',
   howTo: 'شبكة إيموجي كلها شبه بعض وفيها واحد بس غريب مستخبي. لاقيه ودوس عليه. ٣ شبكات، كل واحدة أكبر من اللي قبلها. كل دوسة غلط بـ٣ ثواني.',
-  rule: 'أبطأ عين تشرب.',
+  rule: 'أبطأ عين تاخد صفر.',
   generate(ctx) {
     const pairs = shuffle(ctx.rng, ODD_PAIRS);
     return [4, 5, 6].map((n, k) => {
@@ -176,7 +175,7 @@ export const trueOrFalse = race({
   durationMs: 45000,
   tagline: 'ست معلومات. فيهم كدب.',
   howTo: 'ست جمل، واحدة واحدة. دوس ✓ لو صح و✕ لو غلط. بسرعة، بس كل إجابة غلط بـ٣ ثواني.',
-  rule: 'الأبطأ (بالغرامات) يشرب.',
+  rule: 'الأبطأ (بالغرامات) ياخد صفر.',
   generate(ctx) {
     return pickFreshMany(ctx, TRUE_FALSE, 6).map((x) => ({ prompt: x.text, options: [true, false], answer: x.true ? 0 : 1 }));
   },
@@ -191,7 +190,7 @@ export const emojiRiddle = race({
   durationMs: 40000,
   tagline: 'اقرا الإيموجي. قول الحاجة.',
   howTo: 'كام إيموجي بيوصفوا فيلم أو مسلسل أو مكان أو أكلة أو ماركة. دوس على الإجابة الصح من أربعة. خمس فوازير، وكل غلطة بـ٣ ثواني.',
-  rule: 'أبطأ واحد في الفوازير يشرب.',
+  rule: 'أبطأ واحد في الفوازير ياخد صفر.',
   generate(ctx) {
     return pickFreshMany(ctx, EMOJI_RIDDLES, 5).map((x) => {
       const same = EMOJI_RIDDLES.filter((y) => y.cat === x.cat && y.id !== x.id);
@@ -215,7 +214,7 @@ export const countIt = {
   durationMs: CI_LEAD + CI_SHOW + CI_ANSWER + 1000,
   tagline: 'أربع ثواني. شفت كام واحد؟',
   howTo: 'زحمة إيموجي هتظهر ٤ ثواني على الشاشة الكبيرة وموبايلك. عِد بس اللي هنسألك عليه، وبعدين اكتب رقمك.',
-  rule: 'أبعد تخمين يشرب. لو تعادل: اللي جاوب متأخر.',
+  rule: 'أبعد تخمين ياخد صفر. لو تعادل: اللي جاوب متأخر.',
   setup(ctx) {
     const set = pickFresh(ctx, COUNT_SETS);
     const [target, ...rest] = shuffle(ctx.rng, set.emoji);
@@ -248,7 +247,6 @@ export const countIt = {
     return {
       headline: `كانوا ${s.answer} ${s.target}. ${r.winners.length ? `${namesOf(ctx.players, r.winners)} جابها` : ''}`.trim(),
       ...r,
-      tier: 'small',
       points: pointsFrom(r.rows, r.winners, r.losers),
       reveal: { label: 'الإجابة', q: `${s.target} على الشاشة`, value: String(s.answer) },
       table: closeTable(r.rows, (n) => `قال ${n}`, (d) => `بعيد بـ${d}`),
@@ -283,7 +281,7 @@ export const simonSays = {
   durationMs: 55000,
   tagline: 'بص. افتكر. كرر.',
   howTo: 'موبايلك هينوّر ألوان بترتيب معين. دوس عليهم بنفس الترتيب. كل ما تجيبها صح، السلسلة تزيد واحد. غلطة واحدة وتطلع برة.',
-  rule: 'أقصر ذاكرة تشرب.',
+  rule: 'أقصر ذاكرة تاخد صفر.',
   setup(ctx) {
     const seq = [];
     for (let i = 0; i < SIMON_MAX; i++) {
@@ -313,7 +311,6 @@ export const simonSays = {
     return {
       headline: best > 0 ? `${namesOf(ctx.players, r.winners)} افتكر ${SIMON_START + best - 1} ورا بعض 🧠` : 'ذاكرة سمكة للكل! 🐟',
       ...r,
-      tier: 'small',
       points: pointsFrom(r.rows, r.winners, r.losers),
       table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? `🧠 ${SIMON_START + x.primary - 1} ورا بعض` : '🐟 ٠' })) },
     };
@@ -336,7 +333,7 @@ export const closeCall = {
   durationMs: 30000,
   tagline: 'محدش يعرف. خمّن وخلاص.',
   howTo: 'سؤال إجابته رقم. اكتب أحسن تخمين عندك. مش لازم بالظبط، المهم تكون أقرب من الباقيين.',
-  rule: 'أبعد تخمين يشرب. أقرب واحد يكسب. لو تعادل: اللي جاوب متأخر.',
+  rule: 'أبعد تخمين ياخد صفر. أقرب واحد يكسب. لو تعادل: اللي جاوب متأخر.',
   setup(ctx) {
     const q = pickFresh(ctx, CLOSE_CALL);
     return { q: q.text, answer: q.answer, unit: q.unit ?? '', guesses: {}, at: {} };
@@ -352,10 +349,9 @@ export const closeCall = {
     const r = closeness(ctx.players, s.guesses, s.answer, s.at);
     const all = ctx.players.map((p) => p.id);
     return {
-      headline: r.winners.length ? `الإجابة ${fmtNum(s.answer)}! ${namesOf(ctx.players, r.winners)} كان الأقرب 📏` : `الإجابة ${fmtNum(s.answer)}! محدش خمّن. كله يشرب.`,
+      headline: r.winners.length ? `الإجابة ${fmtNum(s.answer)}! ${namesOf(ctx.players, r.winners)} كان الأقرب 📏` : `الإجابة ${fmtNum(s.answer)}! محدش خمّن. كله ياخد صفر.`,
       ...r,
       losers: r.winners.length ? r.losers : all,
-      tier: 'small',
       points: pointsFrom(r.rows, r.winners, r.winners.length ? r.losers : all),
       reveal: { label: 'الإجابة', q: s.q, value: `${fmtNum(s.answer)} ${s.unit}`.trim() },
       table: closeTable(r.rows, (n) => `قال ${fmtNum(n)}`, (d) => `بعيد بـ${fmtNum(d)}`),

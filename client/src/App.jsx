@@ -10,7 +10,7 @@ import { sfx } from './sound.js';
 const inviteCode = () => new URLSearchParams(location.search).get('join')?.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || null;
 
 export default function App() {
-  const { snap, session, resuming, closed, error, noDrinks } = useStore();
+  const { snap, session, resuming, closed } = useStore();
   const big = useIsBig();
   const [route, setRoute] = useState(() => (inviteCode() ? { name: 'join', code: inviteCode() } : { name: 'home' }));
   const [busy, setBusy] = useState(false);
@@ -86,7 +86,7 @@ export default function App() {
           onDone={async () => {
             setBusy(true);
             try {
-              if (route.purpose === 'host') await api.hostOnPhone({ mode: route.mode ?? 'medium', format: route.game ?? 'party', noDrinks: route.game !== 'boat' && noDrinks });
+              if (route.purpose === 'host') await api.hostOnPhone({ mode: route.mode ?? 'medium', format: route.game ?? 'party' });
               else await api.join(route.code);
               sfx.win();
             } catch {

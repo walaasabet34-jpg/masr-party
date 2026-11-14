@@ -159,12 +159,6 @@ const handlers = {
   'game:input'(c, inp) {
     c.room?.input(c.playerId, inp, Date.now());
   },
-  'drink:judge'(c, d = {}) {
-    c.room?.judgeDrink(who(c), d);
-  },
-  'drink:reassign'(c, d = {}) {
-    c.room?.reassignJudge(c.playerId, d);
-  },
   'mission:claim'(c) {
     c.room?.claimMission(c.playerId);
   },

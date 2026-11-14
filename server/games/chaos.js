@@ -4,37 +4,54 @@ import { nameOf, namesOf, shuffle } from '../lib/util.js';
 
 const has = (ctx, id) => ctx.players.some((p) => p.id === id);
 
-// ---------------------------------------------------------------- Roulette
+// ---------------------------------------------------------------- Roulette (points surprise)
+// The wheel picks one player AND one card. Both are drawn on the server at setup, so every
+// screen spins to the same result, and the points are applied once when the round resolves.
+export const ROULETTE_CARDS = [
+  { n: 3, label: 'جاكبوت! +٣ نقط', icon: '💰' },
+  { n: 2, label: 'هدية +٢ نقطة', icon: '🎁' },
+  { n: -2, label: 'خصم −٢ نقطة', icon: '💸' },
+  { n: -3, label: 'ضربة −٣ نقط', icon: '💀' },
+];
 export const roulette = {
   id: 'roulette',
   name: 'الروليت',
-  icon: '💀',
+  icon: '🎰',
   color: 'magenta',
   kind: 'chaos',
   minPlayers: 2,
   durationMs: 7500,
-  tagline: 'العجلة بتختار ضحية واحدة.',
-  howTo: 'لا مهارة ولا رحمة. الكل على العجلة. اتفرج عليها وهي بتلف وادعي تعدّيك.',
-  rule: 'اللي العجلة تقف عليه ياخد الكبيرة.',
+  tagline: 'العجلة بتختار واحد. والكارت بيحدد حظه.',
+  howTo: 'لا مهارة ولا رحمة. الكل على العجلة. هتلف وتقف على واحد، ويطلعله كارت: يا يكسب نقط يا يتخصم منه.',
+  rule: 'اللي العجلة تقف عليه ياخد كارت: +٣ أو +٢ أو −٢ أو −٣ نقط. الباقي ما بيتغيرش.',
   setup(ctx) {
-    const drinkers = ctx.players.filter((p) => !p.sober);
-    const wedges = (drinkers.length >= 2 ? drinkers : ctx.players).map((p) => p.id);
-    return { wedges, targetId: wedges[Math.floor(ctx.rng() * wedges.length)], turns: 5 + Math.floor(ctx.rng() * 3), startAt: null };
+    const wedges = ctx.players.map((p) => p.id);
+    return {
+      wedges,
+      targetId: wedges[Math.floor(ctx.rng() * wedges.length)],
+      card: ROULETTE_CARDS[Math.floor(ctx.rng() * ROULETTE_CARDS.length)],
+      turns: 5 + Math.floor(ctx.rng() * 3),
+      startAt: null,
+    };
   },
   onTick: (s, ctx) => (s.startAt === null ? { ...s, startAt: ctx.now } : s),
   onInput: (s) => s,
   isComplete: (s, ctx) => s.startAt !== null && ctx.now >= s.startAt + 6500,
   resolve(s, ctx) {
+    const who = nameOf(ctx.players, s.targetId);
+    const good = s.card.n > 0;
     return {
-      headline: `العجلة اختارت ${nameOf(ctx.players, s.targetId)} 💀`,
-      winners: [],
-      losers: [s.targetId],
-      tier: 'big',
-      points: Object.fromEntries(ctx.players.map((p) => [p.id, p.id === s.targetId ? 0 : 1])),
-      table: { layout: 'list', rows: ctx.players.map((p) => (p.id === s.targetId ? { id: p.id, mark: '💀', value: 'الكبيرة', why: 'العجلة اختارته' } : { id: p.id, value: 'المرة دي لأ' })).sort((a) => (a.mark ? 1 : -1)) },
+      headline: `العجلة وقفت على ${who}: ${s.card.icon} ${s.card.label}`,
+      winners: good ? [s.targetId] : [],
+      losers: good ? [] : [s.targetId],
+      hit: [s.targetId],
+      points: { [s.targetId]: s.card.n },
+      reveal: { label: 'الكارت', value: `${s.card.icon} ${s.card.label}` },
+      table: { layout: 'list', rows: ctx.players.map((p) => (p.id === s.targetId ? { id: p.id, mark: s.card.icon, value: `${good ? '+' : ''}${s.card.n}`, why: s.card.label } : { id: p.id, value: 'ما اتغيرش' })).sort((a) => (a.mark ? -1 : 1)) },
     };
   },
-  view: (s) => ({ wedges: s.wedges, targetId: s.targetId, turns: s.turns, startAt: s.startAt }),
+  // the card is shown only when the wheel stops (clients reveal it at startAt + spin)
+  view: (s) => ({ wedges: s.wedges, targetId: s.targetId, card: s.card, turns: s.turns, startAt: s.startAt }),
 };
 
 // ---------------------------------------------------------------- Hot Potato
@@ -48,7 +65,7 @@ export const hotPotato = {
   durationMs: 30000,
   tagline: 'عدّي القنبلة قبل ما تفرقع.',
   howTo: 'موبايل واحد هياخد القنبلة 💣. لو معاك، دوس على أي حد تاني تعدّيهاله. محدش يعرف هتفرقع إمتى.',
-  rule: 'اللي ماسك القنبلة وهي بتفرقع يشرب.',
+  rule: 'اللي ماسك القنبلة وهي بتفرقع يتخصم منه نقطة، والباقي ياخدوا نقطة.',
   setup: (ctx) => ({ holder: ctx.players[Math.floor(ctx.rng() * ctx.players.length)].id, startAt: null, explodeAt: null, exploded: false, lastPassAt: 0, passes: 0, from: null }),
   onTick(s, ctx) {
     let n = s;
@@ -69,7 +86,7 @@ export const hotPotato = {
       headline: `💥 بوووم! ${nameOf(ctx.players, s.holder)} كان ماسك القنبلة`,
       winners: [],
       losers: [s.holder],
-      tier: 'medium',
+      deduct: { [s.holder]: { n: 1, why: 'القنبلة فرقعت في إيدك' } },
       points: Object.fromEntries(ctx.players.map((p) => [p.id, p.id === s.holder ? 0 : 1])),
       reveal: { label: 'فرقعت بعد', value: `${s.passes} تمريرة` },
       table: { layout: 'list', rows: ctx.players.map((p) => (p.id === s.holder ? { id: p.id, mark: '💥', value: 'بوم', why: 'كانت معاه وهي بتفرقع' } : { id: p.id, value: 'عدّاها في وقتها' })).sort((a) => (a.mark ? 1 : -1)) },
@@ -91,7 +108,7 @@ export const musicalChairs = {
   durationMs: 3 * (15000 + GRAB + PAUSE) + 5000,
   tagline: 'ارقص. وبعدين اتخانق على كرسي.',
   howTo: 'قوم ارقص طول ما المزيكا شغالة. أول ما تقف، دوس على كرسي فاضي على موبايلك. دايمًا فيه كرسي ناقص. لو دوست والمزيكا لسه شغالة تطلع برة.',
-  rule: 'اللي يقعد من غير كرسي يشرب. لحد تلات جولات.',
+  rule: 'اللي يقعد من غير كرسي ياخد صفر. لحد تلات جولات.',
   setup: (ctx) => ({ stage: 'music', round: 1, rounds: Math.min(3, ctx.players.length - 1), musicFrom: null, stopAt: null, until: null, alive: ctx.players.map((p) => p.id), chairs: [], early: [], out: [], lastOut: [] }),
   onTick(s, ctx) {
     if (s.stopAt === null) return { ...s, musicFrom: ctx.now, stopAt: ctx.now + 6000 + Math.floor(ctx.rng() * 8000) };
@@ -134,7 +151,6 @@ export const musicalChairs = {
       headline: s.alive.length ? `🪑 ${namesOf(ctx.players, s.alive)} لقوا كرسي!` : 'محدش لقى كرسي!',
       winners: s.alive,
       losers,
-      tier: 'small',
       points: Object.fromEntries(ctx.players.map((p) => [p.id, losers.includes(p.id) ? 0 : 2])),
       table: { layout: 'groups', groups: groups.map(([ids, t]) => ({ title: t, count: ids.length })), rows },
     };
@@ -181,11 +197,9 @@ export const shellShock = {
   kind: 'chaos',
   minPlayers: 3,
   durationMs: SHOW + SHUFFLE + SWAP_MS + PICK + REVEAL + 3000,
-  tagline: 'تابع الشوت. وما تثقش في حد.',
-  taglineDry: 'تابع الكباية. وما تثقش في حد.',
-  howTo: 'شوت هيتحط تحت كباية من تلاتة. واحد فيكم هو النصّاب وبيلخبط الكبايات بأسرع ما عنده. الباقي يتابعوا الشوت ويختاروا الكباية اللي فاكرين إنه تحتها.',
-  howToDry: 'حاجة هتتحط تحت كباية من تلاتة. واحد فيكم هو النصّاب وبيلخبط الكبايات بأسرع ما عنده. الباقي يتابعوها ويختاروا الكباية اللي فاكرين إنها تحتها.',
-  rule: 'اللي يختار كباية فاضية يشرب. لو محدش اتضحك عليه، النصّاب يشرب.',
+  tagline: 'تابع الجنيه. وما تثقش في حد.',
+  howTo: 'جنيه هيتحط تحت كباية من تلاتة. واحد فيكم هو النصّاب وبيلخبط الكبايات بأسرع ما عنده. الباقي يتابعوا الجنيه ويختاروا الكباية اللي فاكرين إنه تحتها.',
+  rule: 'اللي يلاقي الجنيه ياخد ٢، والنصّاب ياخد نقطة عن كل واحد ضحك عليه. لو محدش اتضحك عليه، النصّاب يتخصم منه نقطة.',
   setup: (ctx) => ({ stage: 'show', hustler: ctx.players[Math.floor(ctx.rng() * ctx.players.length)].id, shot: Math.floor(ctx.rng() * CUPS), startAt: null, shuffleUntil: null, swaps: [], until: null, picks: {} }),
   onTick: (s, ctx) => advance(s, ctx),
   onInput(s, pid, inp, ctx) {
@@ -215,7 +229,7 @@ export const shellShock = {
     const usedCups = [0, 1, 2].filter((c) => gs.some((id) => s.picks[id] === c));
     const table = {
       layout: 'groups',
-      groups: usedCups.map((c) => ({ title: `${c === at ? '🥃' : '🥤'} كباية ${c + 1}`, count: gs.filter((id) => s.picks[id] === c).length })),
+      groups: usedCups.map((c) => ({ title: `${c === at ? '🪙' : '🥤'} كباية ${c + 1}`, count: gs.filter((id) => s.picks[id] === c).length })),
       rows: [
         ...usedCups.flatMap((c, g) => gs.filter((id) => s.picks[id] === c).map((id) => ({ id, group: g, value: c === at ? 'لقاه' : 'فاضية' }))),
         ...gs.filter((id) => s.picks[id] === undefined).map((id) => ({ id, value: 'ما اختارش' })),
@@ -225,16 +239,15 @@ export const shellShock = {
     const points = (losers) => Object.fromEntries(ctx.players.map((p) => [p.id, losers.includes(p.id) ? 0 : p.id === s.hustler ? fooled.length : 2]));
     if (fooled.length) {
       return {
-        headline: found.length ? `الشوت كان تحت كباية ${at + 1}. ${h} ضحك على ${namesOf(ctx.players, fooled)} 🎩` : `${h} نصب على الكل! الشوت كان تحت كباية ${at + 1} 🎩`,
+        headline: found.length ? `الجنيه كان تحت كباية ${at + 1}. ${h} ضحك على ${namesOf(ctx.players, fooled)} 🎩` : `${h} نصب على الكل! الجنيه كان تحت كباية ${at + 1} 🎩`,
         winners: [...found, s.hustler],
         losers: fooled,
-        tier: 'small',
         points: points(fooled),
-        reveal: { label: 'الشوت تحت', value: `كباية ${at + 1}` },
+        reveal: { label: 'الجنيه تحت', value: `كباية ${at + 1}` },
         table,
       };
     }
-    return { headline: `محدش اتضحك عليه! الشوت كان تحت كباية ${at + 1}. النصّاب ${h} يشرب 🎩`, winners: found, losers: [s.hustler], tier: 'medium', points: points([s.hustler]), reveal: { label: 'الشوت تحت', value: `كباية ${at + 1}` }, table };
+    return { headline: `محدش اتضحك عليه! الجنيه كان تحت كباية ${at + 1}. النصّاب ${h} يتخصم منه نقطة 🎩`, winners: found, losers: [s.hustler], deduct: { [s.hustler]: { n: 1, why: 'نصّاب ومحدش اتضحك عليه' } }, points: points([s.hustler]), reveal: { label: 'الجنيه تحت', value: `كباية ${at + 1}` }, table };
   },
   view(s, pid) {
     const sees = pid === s.hustler || s.stage === 'reveal' || s.stage === 'done';
@@ -292,7 +305,7 @@ export const rockPaperScissors = {
   durationMs: MAX_THROWS * (THROW_MS + SHOW_MS) + 3000,
   tagline: 'مبارزات عشوائية. أحسن من تلاتة.',
   howTo: 'هيطلعلك خصم عشوائي. اختار ✊ حجرة أو ✋ ورقة أو ✌️ مقص في السر. أول واحد يكسب رميتين ياخد المبارزة، والتعادل ما بيتحسبش.',
-  rule: 'خسران كل مبارزة يشرب.',
+  rule: 'خسران كل مبارزة ياخد صفر.',
   setup(ctx) {
     const ids = shuffle(ctx.rng, ctx.players.map((p) => p.id));
     const duels = [];
@@ -330,7 +343,7 @@ export const rockPaperScissors = {
     const rows = duels.flatMap((d, g) => d.map((id) => ({ id, status: 'ok', primary: wins[id] ?? 0, tiebreak: -(net[id] ?? 0), group: g, facts: { throws: trail(id) } })));
     const r = rank(rows, { better: 'higher', allTied: 'everyone' });
     let headline;
-    if (!r.winners.length && r.losers.length) headline = 'لسه متعادلين، محدش كسب! 🍺';
+    if (!r.winners.length && r.losers.length) headline = 'لسه متعادلين، محدش كسب! 🤝';
     else if (duels.length === 1 && duels[0].length === 2 && r.winners.length === 1) {
       const w = r.winners[0];
       const l = duels[0].find((id) => id !== w);
@@ -339,7 +352,6 @@ export const rockPaperScissors = {
     return {
       headline,
       ...r,
-      tier: 'small',
       points: pointsFrom(r.rows, r.winners, r.losers, 'duel'),
       table: { layout: 'pairs', groups: duels.map(() => ({ title: '' })), rows: r.rows.map((x) => ({ id: x.id, group: x.group, place: x.place, value: String(x.primary), why: x.facts.throws })) },
     };
@@ -360,8 +372,8 @@ export const loneWolf = {
   minPlayers: 3,
   durationMs: 20000,
   tagline: 'اختار رقم محدش غيرك يختاره.',
-  howTo: 'كل واحد يختار رقم في السر. لو حد تاني اختار نفس الرقم، انتو الاتنين تشربوا. خليك الديب الوحداني. لو محدش اتخبط في حد، أصغر رقم يشرب.',
-  rule: 'نفس الرقم = تشرب. مفيش تخبيط؟ أصغر رقم يشرب.',
+  howTo: 'كل واحد يختار رقم في السر. لو حد تاني اختار نفس الرقم، انتو الاتنين تاخدوا صفر. خليك الديب الوحداني. لو محدش اتخبط في حد، أصغر رقم ياخد صفر.',
+  rule: 'نفس الرقم = تاخد صفر. مفيش تخبيط؟ أصغر رقم ياخد صفر.',
   setup: (ctx) => ({ max: Math.min(10, Math.max(4, ctx.players.length + 1)), picks: {} }),
   onInput(s, pid, inp) {
     if (inp.type !== 'pick' || pid in s.picks) return s;
@@ -388,11 +400,11 @@ export const loneWolf = {
     if (clash.length + asleep.length) {
       const losers = [...clash, ...asleep];
       const clashNums = [...new Set(clash.map((id) => s.picks[id]))].sort((a, b) => a - b).join('، ');
-      return { headline: clash.length ? `تخبيط على ${clashNums}! ${namesOf(ctx.players, clash)} يشربوا 🐺` : `${namesOf(ctx.players, asleep)} ناموا. اشربوا!`, winners: topWolves, losers, tier: 'small', points: points(losers, topWolves), table };
+      return { headline: clash.length ? `تخبيط على ${clashNums}! ${namesOf(ctx.players, clash)} ياخدوا صفر 🐺` : `${namesOf(ctx.players, asleep)} ناموا. صفر للكل!`, winners: topWolves, losers, points: points(losers, topWolves), table };
     }
     const low = Math.min(...lone.map((id) => s.picks[id]));
     const losers = lone.filter((id) => s.picks[id] === low);
-    return { headline: `كلكم ديابة وحدانية! أصغر رقم (${low}) يشرب: ${namesOf(ctx.players, losers)}`, winners: topWolves, losers, tier: 'small', points: points(losers, topWolves), table };
+    return { headline: `كلكم ديابة وحدانية! أصغر رقم (${low}) ياخد صفر: ${namesOf(ctx.players, losers)}`, winners: topWolves, losers, points: points(losers, topWolves), table };
   },
   view: (s, pid) => ({ max: s.max, mine: s.picks[pid] ?? null, picked: Object.keys(s.picks) }),
 };

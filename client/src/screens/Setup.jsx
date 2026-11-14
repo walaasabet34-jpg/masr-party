@@ -6,14 +6,7 @@ import { Blobs, Btn, HEX, Logo, Menu, TopBar, BackBtn, Toggle, darkText } from '
 import { GameCard } from './Home.jsx';
 import { sfx, haptic } from '../sound.js';
 
-const MODE_TEXT = {
-  lite: { lose: '١–٣ شفطات', roulette: '٥ شفطات' },
-  medium: { lose: '١–٣ شفطات أو شوت', roulette: '٢ شوت' },
-  hardcore: { lose: 'شفطات أو شوتات', roulette: 'الكاس كله' },
-};
-
-export function VibeList({ mode, setMode, big }) {
-  const { noDrinks } = useStore();
+export function VibeList({ mode, setMode }) {
   return (
     <div className="flex flex-col gap-4">
       {['lite', 'medium', 'hardcore'].map((m, i) => {
@@ -38,7 +31,7 @@ export function VibeList({ mode, setMode, big }) {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="font-display font-black text-3xl">{M.label}</div>
-                <div className={on ? 'opacity-80' : 'text-ink-muted'}>{noDrinks ? M.descDry : M.desc}</div>
+                <div className={on ? 'opacity-80' : 'text-ink-muted'}>{M.desc}</div>
               </div>
               <span className="flex items-end gap-1" aria-hidden>
                 {[0, 1, 2].map((k) => (
@@ -46,18 +39,7 @@ export function VibeList({ mode, setMode, big }) {
                 ))}
               </span>
             </div>
-            {on && !noDrinks && (
-              <div className={`mt-3 grid grid-cols-2 gap-3 ${big ? '' : ''}`}>
-                <div className="rounded-2xl bg-black p-3 text-white">
-                  <div className="text-xs font-bold tracking-wider text-ink-muted">😬 {T.loseRound}</div>
-                  <div className="font-display font-black text-lg" style={{ color: HEX[M.color] }}>{MODE_TEXT[m].lose}</div>
-                </div>
-                <div className="rounded-2xl bg-black p-3 text-white">
-                  <div className="text-xs font-bold tracking-wider text-ink-muted">🎯 {T.roulette}</div>
-                  <div className="font-display font-black text-lg" style={{ color: HEX[M.color] }}>{MODE_TEXT[m].roulette}</div>
-                </div>
-              </div>
-            )}
+            {on && <div className="mt-3 rounded-2xl bg-black p-3 text-sm font-bold text-white">📝 {M.more}</div>}
           </motion.button>
         );
       })}
@@ -90,11 +72,10 @@ export function BoatSteps() {
 export function SetupDesktop({ game, onBack }) {
   const [mode, setMode] = useState('medium');
   const [busy, setBusy] = useState(false);
-  const { noDrinks } = useStore();
   const open = async () => {
     setBusy(true);
     try {
-      await api.hostOnScreen({ mode, format: game, noDrinks: game === 'party' && noDrinks });
+      await api.hostOnScreen({ mode, format: game });
       sfx.pop();
     } catch {
       sfx.buzz();
@@ -116,7 +97,7 @@ export function SetupDesktop({ game, onBack }) {
           {game === 'party' ? (
             <>
               <h2 className="mb-5 font-display font-black text-4xl">{T.pickVibe}</h2>
-              <VibeList mode={mode} setMode={setMode} big />
+              <VibeList mode={mode} setMode={setMode} />
               <Btn color={T.modes[mode].color} size="xl" className="mt-6 w-full" onClick={open} disabled={busy}>
                 {T.openParty}
               </Btn>
@@ -267,18 +248,10 @@ export function JoinCode({ onBack, onFound, onHost, initial = '' }) {
 export function Profile({ title, onBack, onDone, room, busy }) {
   const { identity, error } = useStore();
   const [tab, setTab] = useState('colour');
-  const [adult, setAdult] = useState(() => !!localStorageGet('adult'));
-  const [nag, setNag] = useState(false);
   const name = identity.name ?? '';
   const ok = name.trim().length > 0;
   const submit = () => {
     if (!ok) return;
-    if (!adult) {
-      setNag(true);
-      sfx.buzz();
-      return;
-    }
-    localStorageSet('adult', true);
     onDone();
   };
   return (
@@ -331,11 +304,6 @@ export function Profile({ title, onBack, onDone, room, busy }) {
                 className="min-w-0 flex-1 bg-transparent font-display font-black text-3xl outline-none placeholder:text-black/25"
               />
             </div>
-            <div className="flex justify-end px-4 pb-3">
-              <span className="rounded-full border-2 border-black px-3 py-0.5 font-display font-black text-xs" style={{ background: identity.sober ? HEX.mint : HEX.yellow }}>
-                {identity.sober ? `🧃 ${T.pinJustForFun}` : `🍺 ${T.pinDrinking}`}
-              </span>
-            </div>
           </div>
           <div className="mt-4 grid grid-cols-1">
             <button type="button" onClick={() => api.shuffleLook()} className="press brutal rounded-2xl bg-white py-3 font-display font-black text-black">
@@ -363,12 +331,6 @@ export function Profile({ title, onBack, onDone, room, busy }) {
                 ))}
           </div>
           <div className="mt-5 flex flex-col gap-3">
-            <Toggle on={!!identity.sober} onChange={(v) => api.setIdentity({ sober: v })} label={T.notDrinking} sub={T.notDrinkingSub} />
-            <label className={`flex items-start gap-3 rounded-3xl border-[3px] p-4 ${nag && !adult ? 'shake border-red' : 'border-white/20'} bg-black/30`}>
-              <input type="checkbox" checked={adult} onChange={(e) => setAdult(e.target.checked)} className="mt-1 h-6 w-6 accent-lime" />
-              <span className="text-ink-muted">{T.adultCheck}</span>
-            </label>
-            {nag && !adult && <p className="text-center font-display font-black text-red">{T.adultNeeded}</p>}
             {error && <p className="text-center font-display font-black text-red">{T.errors[error] ?? error}</p>}
           </div>
         </div>
@@ -382,16 +344,4 @@ export function Profile({ title, onBack, onDone, room, busy }) {
   );
 }
 
-function localStorageGet(k) {
-  try {
-    return JSON.parse(localStorage.getItem('tal2a:' + k));
-  } catch {
-    return null;
-  }
-}
-function localStorageSet(k, v) {
-  try {
-    localStorage.setItem('tal2a:' + k, JSON.stringify(v));
-  } catch {}
-}
 export { getState };

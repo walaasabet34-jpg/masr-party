@@ -16,9 +16,9 @@ export const tapRace = {
   minPlayers: 2,
   durationMs: 12000,
   weight: 1.4,
-  tagline: 'استنى الأخضر. آخر واحد يدوس يشرب.',
+  tagline: 'استنى الأخضر. آخر واحد يدوس ياخد صفر.',
   howTo: 'الموبايل هيقلب أحمر. استنى… استنى… أول ما يقلب أخضر دوس بأسرع ما عندك. خلي بالك من الفلاشات الفشنك!',
-  rule: 'أبطأ واحد يشرب. اللي يدوس بدري أو ما يدوسش خالص يشرب برضه.',
+  rule: 'أبطأ واحد ياخد صفر. اللي يدوس بدري أو ما يدوسش خالص ياخد صفر برضه.',
   setup(ctx) {
     const delayMs = 1800 + Math.floor(ctx.rng() * 3500);
     const fakeouts = ctx.rng() < 0.5 ? [Math.floor(delayMs * (0.3 + ctx.rng() * 0.4))] : [];
@@ -43,9 +43,8 @@ export const tapRace = {
     const r = rank(rows, { better: 'lower' });
     const first = r.winners[0];
     return {
-      headline: first ? `${nameOf(ctx.players, first)} كان الأسرع (${ms(s.taps[first])})` : r.rows.some((x) => x.status === 'foul') ? 'كله داس بدري!' : 'محدش داس. كله يشرب!',
+      headline: first ? `${nameOf(ctx.players, first)} كان الأسرع (${ms(s.taps[first])})` : r.rows.some((x) => x.status === 'foul') ? 'كله داس بدري!' : 'محدش داس. كله ياخد صفر!',
       ...r,
-      tier: 'small',
       points: pointsFrom(r.rows, r.winners, r.losers),
       table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? ms(x.primary) : x.status === 'foul' ? '⚡ بدري' : '—', why: x.status === 'out' ? 'ما داسش' : undefined })) },
     };
@@ -73,7 +72,7 @@ export const tapFrenzy = {
   durationMs: FRENZY + 1500,
   tagline: 'ست ثواني. افرم الزرار.',
   howTo: 'أول ما تبدأ، دوس على الزرار الكبير أكتر عدد مرات تقدر عليه لمدة ٦ ثواني. استخدم كل صوابعك.',
-  rule: 'أقل واحد داس يشرب. لو تعادل: اللي وصل للرقم ده متأخر.',
+  rule: 'أقل واحد داس ياخد صفر. لو تعادل: اللي وصل للرقم ده متأخر.',
   setup: () => ({ startAt: null, counts: {}, lastAt: {} }),
   onTick: (s, ctx) => (s.startAt === null ? { ...s, startAt: ctx.now } : s),
   onInput(s, pid, inp, ctx) {
@@ -91,7 +90,6 @@ export const tapFrenzy = {
       headline: best === 0 ? 'محدش داس خالص!' : winners.length ? `${nameOf(ctx.players, winners[0])} فرم ${best} دوسة 🔥` : `تعادل! كله فرم ${best} دوسة 🔥`,
       ...r,
       winners,
-      tier: 'small',
       points: pointsFrom(r.rows, winners, r.losers),
       table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: `${x.primary} دوسة` })) },
     };
@@ -112,7 +110,7 @@ export const dontLetGo = {
   durationMs: GATHER + 15000 + GO_WINDOW,
   tagline: 'اثبت. وصباعك كمان.',
   howTo: 'دوس واستمر دايس على الدايرة. فضل ماسك وسط الحركات الفشنك. أول ما يقولك «سيب!» ارفع صباعك بأسرع ما يمكن.',
-  rule: 'اللي يسيب بدري يشرب. لو محدش اتهز، أبطأ واحد سابه يشرب.',
+  rule: 'اللي يسيب بدري ياخد صفر. لو محدش اتهز، أبطأ واحد سابه ياخد صفر.',
   setup: () => ({ stage: 'gather', gatherUntil: null, goAt: null, fakeouts: [], holding: {}, out: {}, releaseMs: {} }),
   onTick(s, ctx) {
     if (s.gatherUntil === null) return { ...s, gatherUntil: ctx.now + GATHER };
@@ -158,7 +156,6 @@ export const dontLetGo = {
       headline: cracked ? `${names} اتهزوا 😬` : `أعصاب حديد! ${names} كان الأبطأ في السيبان`,
       ...r,
       winners,
-      tier: 'small',
       points: pointsFrom(r.rows, winners, r.losers),
       table: {
         layout: 'list',
@@ -194,7 +191,7 @@ export const stopAtTen = {
   durationMs: 22000,
   tagline: 'عِد لعشرة. وانت مغمّض.',
   howTo: 'ساعة إيقاف هتشتغل على موبايلك وتختفي بعد ٣ ثواني. دوس «وقّف» لما تحس إن عدّى ١٠٫٠٠ ثانية بالظبط.',
-  rule: 'أبعد واحد عن ١٠ ثواني يشرب. لو تعادل: اللي وقّف متأخر.',
+  rule: 'أبعد واحد عن ١٠ ثواني ياخد صفر. لو تعادل: اللي وقّف متأخر.',
   setup: () => ({ startAt: null, stops: {} }),
   onTick: (s, ctx) => (s.startAt === null ? { ...s, startAt: ctx.now } : s),
   onInput(s, pid, inp, ctx) {
@@ -211,7 +208,6 @@ export const stopAtTen = {
     return {
       headline: w ? `${nameOf(ctx.players, w)} وقّف عند ${sec(s.stops[w], 2)} 🎯` : 'محدش وقّف الساعة!',
       ...r,
-      tier: 'small',
       points: pointsFrom(r.rows, r.winners, r.losers),
       reveal: { label: 'الهدف', value: '١٠٫٠٠ ث' },
       table: {
@@ -234,7 +230,7 @@ export const quickDraw = {
   durationMs: 15000,
   tagline: 'اتنين بيتبارزوا. والباقي بيراهن.',
   howTo: 'اتنين بيتبارزوا: استنوا كلمة «اسحب!» وبعدين دوس الأول. الباقيين يراهنوا على الكسبان قبل السحب.',
-  rule: 'الأبطأ في المبارزة يشرب. اللي راهن غلط أو ما راهنش يشرب برضه.',
+  rule: 'كسبان المبارزة ياخد ٢ واللي راهن صح ياخد ١. الأبطأ في المبارزة يتخصم منه نقطة، واللي راهن غلط أو ما راهنش ياخد صفر.',
   setup(ctx) {
     const ids = shuffle(ctx.rng, ctx.players.map((p) => p.id));
     return { duelists: ids.slice(0, 2), drawAt: null, drawn: false, shots: {}, bets: {} };
@@ -262,16 +258,13 @@ export const quickDraw = {
     const early = s.duelists.filter((id) => s.shots[id] === -1);
     const slow = early.length ? early : t(a) === t(b) ? [a, b] : [t(a) > t(b) ? a : b];
     const winners = s.duelists.filter((id) => !slow.includes(id));
-    const tierByPlayer = {};
     const losers = [...slow];
-    for (const id of slow) tierByPlayer[id] = 'medium';
+    const deduct = {};
+    for (const id of slow) deduct[id] = { n: 1, why: s.shots[id] === -1 ? 'ضربت قبل «اسحب!»' : 'خسرت المبارزة' };
     for (const p of ctx.players) {
       if (s.duelists.includes(p.id)) continue;
       const bet = s.bets[p.id];
-      if (!bet || !winners.includes(bet)) {
-        losers.push(p.id);
-        tierByPlayer[p.id] = 'small';
-      }
+      if (!bet || !winners.includes(bet)) losers.push(p.id);
     }
     const w = winners[0];
     const shotTxt = (id) => (s.shots[id] === undefined ? '🔫 ما ضربش' : s.shots[id] < 0 ? '⚡ بدري' : ms(s.shots[id]));
@@ -280,8 +273,7 @@ export const quickDraw = {
       headline: w ? `🤠 ${nameOf(ctx.players, w)} كسب المبارزة${s.shots[w] >= 0 ? ` (${ms(s.shots[w])})` : ''}` : 'الاتنين باظوا المبارزة!',
       winners,
       losers,
-      tier: 'small',
-      tierByPlayer,
+      deduct,
       points,
       table: {
         layout: 'list',
@@ -326,7 +318,7 @@ export const whackAMole = {
   durationMs: WHACK_LEAD + WHACK + 1500,
   tagline: 'اضرب الفيران. مش القنابل.',
   howTo: 'فيران هتطلع من الخُرم على موبايلك لمدة ١٥ ثانية. اضرب كل واحد قبل ما يستخبى. لو ضربت قنبلة 💣 تخسر ٣ نقط.',
-  rule: 'أقل سكور يشرب. لو تعادل: اللي وصل للسكور ده متأخر.',
+  rule: 'أقل سكور ياخد صفر. لو تعادل: اللي وصل للسكور ده متأخر.',
   setup(ctx) {
     const moles = [];
     const busy = Array(9).fill(0);
@@ -369,7 +361,6 @@ export const whackAMole = {
       headline: best <= 0 ? 'محدش جاب نقط!' : winners.length ? `${namesOf(ctx.players, winners)} ضرب ${best} 🔨` : `تعادل على ${best} 🔨`,
       ...r,
       winners,
-      tier: 'small',
       points: pointsFrom(r.rows, winners, r.losers),
       table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: `${x.primary}`, why: `${x.facts.moles} فار${x.facts.bombs ? ` · ${x.facts.bombs} 💣 −${3 * x.facts.bombs}` : ''}` })) },
     };
@@ -393,7 +384,7 @@ const SNAP_SETS = [
   ['❤️', '🧡', '💛', '💚', '💙'],
   ['🙈', '🙉', '🙊', '🐵', '🐒'],
   ['🌑', '🌒', '🌓', '🌔', '🌕'],
-  ['☕', '🧃', '🥤', '🧉', '🍵'],
+  ['☕', '🧋', '🥤', '🧉', '🍵'],
 ];
 const isPair = (c) => !!c && c.a === c.b;
 function snapScore(s, pid) {
@@ -411,7 +402,7 @@ export const snap = {
   durationMs: SNAP_LEAD + 21000,
   tagline: 'اتنين زي بعض؟ اخبط!',
   howTo: 'كارتين بيتقلبوا ورا بعض. أول ما يطلعوا نفس الصورة، اخبط «خبطة!». فيه ٣ أزواج. لو خبطت على كروت مختلفة تخسر نقطة.',
-  rule: 'أقل نقط يشرب. لو تعادل: الإيد الأبطأ.',
+  rule: 'أقل نقط ياخد صفر. لو تعادل: الإيد الأبطأ.',
   setup(ctx) {
     const set = pickOne(ctx.rng, SNAP_SETS);
     const pairAt = new Set();
@@ -466,7 +457,6 @@ export const snap = {
       headline: best > 0 ? `${nameOf(ctx.players, winners[0])} إيده أسرع واحد 🃏` : 'محدش خبط صح!',
       ...r,
       winners,
-      tier: 'small',
       points: pointsFrom(r.rows, winners, r.losers),
       table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: `${x.primary}`, why: x.facts.wrong ? `${x.facts.wrong}× غلط −1` : undefined })) },
     };
