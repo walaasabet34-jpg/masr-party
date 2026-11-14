@@ -3,6 +3,8 @@
 import { shuffle } from './lib/util.js';
 
 export const BOAT_MAX = 12;
+// A long boat ride can't wipe out the whole night: at most 5 points lost on the boat per player.
+export const MAX_BOAT_LOSS = 5;
 const ROWS = [5, 4, 3, 2, 1];
 const ROW_MS = 30000;
 const GUESS_MS = 30000;
@@ -134,7 +136,10 @@ function flipBoat(b, ctx) {
     const g = b.guesses[id] ?? null;
     const right = g && card.r !== boatCard.r && (g === 'higher') === card.r > boatCard.r;
     res[id] = { guess: g, right: !!right };
-    if (!right) n = addPoints(n, id, -1);
+    if (!right) {
+      const lost = n.boatLoss?.[id] ?? 0;
+      if (lost < MAX_BOAT_LOSS) n = { ...addPoints(n, id, -1), boatLoss: { ...n.boatLoss, [id]: lost + 1 } };
+    }
   }
   const revealed = [...b.revealed];
   revealed[b.idx] = true;

@@ -100,3 +100,24 @@ test('boat plays all five parts with automatic turns, safe pyramid retries and p
   assert.ok(Object.values(b.points).every(Number.isFinite));
   assert.ok(boatAwards(b, ids.map((id) => ({ id }))).some((a) => a.key.startsWith('champion-')));
 });
+
+test('boat ride: losses stop at 5 per player, getting off still pays +3', () => {
+  const players = [{ id: 'a' }, { id: 'b' }];
+  let b = createBoat(players, Math.random);
+  const ctx = (now) => ({ now, rng: Math.random, connected: () => true, isHost: () => true });
+  const boatCards = [5, 5, 5, 5, 5].map((r) => ({ r, s: 'C' }));
+  const boatDeck = Array.from({ length: 30 }, () => ({ r: 9, s: 'H' }));
+  b = { ...b, part: 5, stage: 'boat', crew: ['a'], riders: ['a'], off: [], splashed: [], idx: 0, boatCards, revealed: [false, false, false, false, false], boatDeck, guesses: {}, guessUntil: 1e12, attempts: 1 };
+  const start = b.points.a;
+  for (let i = 0; i < 12; i++) {
+    b = boatAct(b, 'a', { type: 'guess', pick: 'lower' }, ctx(i * 20000)); // always wrong (9 > 5)
+    b = boatTick(b, ctx(i * 20000 + 5000));
+  }
+  assert.equal(b.points.a - start, -5);
+  for (let i = 12; i < 17; i++) {
+    b = boatAct(b, 'a', { type: 'guess', pick: 'higher' }, ctx(i * 20000));
+    b = boatTick(b, ctx(i * 20000 + 5000));
+  }
+  assert.ok(b.off.includes('a'));
+  assert.equal(b.points.a - start, -5 + 3);
+});
