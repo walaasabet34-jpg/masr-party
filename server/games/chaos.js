@@ -47,7 +47,7 @@ export const hotPotato = {
   durationMs: 30000,
   tagline: 'عدّي القنبلة قبل ما تفرقع.',
   howTo: 'موبايل واحد هياخد القنبلة 💣. لو معاك، دوس على أي حد تاني تعدّيهاله. محدش يعرف هتفرقع إمتى.',
-  rule: 'اللي ماسك القنبلة وهي بتفرقع يتخصم منه نقطة.',
+  rule: 'اللي ماسك القنبلة وهي بتفرقع يتخصم منه نقطة، والباقي ياخدوا نقطة.',
   setup: (ctx) => ({ holder: ctx.players[Math.floor(ctx.rng() * ctx.players.length)].id, startAt: null, explodeAt: null, exploded: false, lastPassAt: 0, passes: 0, from: null }),
   onTick(s, ctx) {
     let n = s;
@@ -68,6 +68,7 @@ export const hotPotato = {
       headline: `💥 بوووم! ${nameOf(ctx.players, s.holder)} كان ماسك القنبلة`,
       winners: [],
       losers: [s.holder],
+      deduct: { [s.holder]: 'القنبلة فرقعت في إيدك' },
       points: Object.fromEntries(ctx.players.map((p) => [p.id, p.id === s.holder ? 0 : 1])),
       reveal: { label: 'فرقعت بعد', value: `${s.passes} تمريرة` },
       table: { layout: 'list', rows: ctx.players.map((p) => (p.id === s.holder ? { id: p.id, mark: '💥', value: 'بوم', why: 'كانت معاه وهي بتفرقع' } : { id: p.id, value: 'عدّاها في وقتها' })).sort((a) => (a.mark ? 1 : -1)) },
@@ -89,7 +90,7 @@ export const musicalChairs = {
   durationMs: 3 * (15000 + GRAB + PAUSE) + 5000,
   tagline: 'ارقص. وبعدين اتخانق على كرسي.',
   howTo: 'قوم ارقص طول ما المزيكا شغالة. أول ما تقف، دوس على كرسي فاضي على موبايلك. دايمًا فيه كرسي ناقص. لو دوست والمزيكا لسه شغالة تطلع برة.',
-  rule: 'اللي يقعد من غير كرسي يتخصم منه نقطة. لحد تلات جولات.',
+  rule: 'اللي يقعد من غير كرسي ياخد صفر. لحد تلات جولات.',
   setup: (ctx) => ({ stage: 'music', round: 1, rounds: Math.min(3, ctx.players.length - 1), musicFrom: null, stopAt: null, until: null, alive: ctx.players.map((p) => p.id), chairs: [], early: [], out: [], lastOut: [] }),
   onTick(s, ctx) {
     if (s.stopAt === null) return { ...s, musicFrom: ctx.now, stopAt: ctx.now + 6000 + Math.floor(ctx.rng() * 8000) };
@@ -180,7 +181,7 @@ export const shellShock = {
   durationMs: SHOW + SHUFFLE + SWAP_MS + PICK + REVEAL + 3000,
   tagline: 'تابع العملة. وما تثقش في حد.',
   howTo: 'عملة هتتحط تحت كباية من تلاتة. واحد فيكم هو النصّاب وبيلخبط الكبايات بأسرع ما عنده. الباقي يتابعوا العملة ويختاروا الكباية اللي فاكرين إنه تحتها.',
-  rule: 'اللي يختار كباية فاضية يتخصم منه نقطة. لو محدش اتضحك عليه، النصّاب يتخصم منه نقطة.',
+  rule: 'اللي يختار كباية فاضية ياخد صفر. لو محدش اتضحك عليه، النصّاب يتخصم منه نقطة.',
   setup: (ctx) => ({ stage: 'show', hustler: ctx.players[Math.floor(ctx.rng() * ctx.players.length)].id, coin: Math.floor(ctx.rng() * CUPS), startAt: null, shuffleUntil: null, swaps: [], until: null, picks: {} }),
   onTick: (s, ctx) => advance(s, ctx),
   onInput(s, pid, inp, ctx) {
@@ -228,7 +229,7 @@ export const shellShock = {
         table,
       };
     }
-    return { headline: `محدش اتضحك عليه! العملة كانت تحت كباية ${at + 1}. النصّاب ${h} يتخصم منه نقطة 🎩`, winners: found, losers: [s.hustler], points: points([s.hustler]), reveal: { label: 'العملة تحت', value: `كباية ${at + 1}` }, table };
+    return { headline: `محدش اتضحك عليه! العملة كانت تحت كباية ${at + 1}. النصّاب ${h} يتخصم منه نقطة 🎩`, winners: found, losers: [s.hustler], deduct: { [s.hustler]: 'نصّاب ومحدش اتضحك عليه' }, points: points([s.hustler]), reveal: { label: 'العملة تحت', value: `كباية ${at + 1}` }, table };
   },
   view(s, pid) {
     const sees = pid === s.hustler || s.stage === 'reveal' || s.stage === 'done';
@@ -286,7 +287,7 @@ export const rockPaperScissors = {
   durationMs: MAX_THROWS * (THROW_MS + SHOW_MS) + 3000,
   tagline: 'مبارزات عشوائية. أحسن من تلاتة.',
   howTo: 'هيطلعلك خصم عشوائي. اختار ✊ حجرة أو ✋ ورقة أو ✌️ مقص في السر. أول واحد يكسب رميتين ياخد المبارزة، والتعادل ما بيتحسبش.',
-  rule: 'خسران كل مبارزة يتخصم منه نقطة.',
+  rule: 'خسران كل مبارزة ياخد صفر.',
   setup(ctx) {
     const ids = shuffle(ctx.rng, ctx.players.map((p) => p.id));
     const duels = [];
@@ -353,8 +354,8 @@ export const loneWolf = {
   minPlayers: 3,
   durationMs: 20000,
   tagline: 'اختار رقم محدش غيرك يختاره.',
-  howTo: 'كل واحد يختار رقم في السر. لو حد تاني اختار نفس الرقم، انتو الاتنين يتخصم منكم نقطة. خليك الديب الوحداني. لو محدش اتخبط في حد، أصغر رقم يتخصم منه نقطة.',
-  rule: 'نفس الرقم = يتخصم منك نقطة. مفيش تخبيط؟ أصغر رقم يتخصم منه نقطة.',
+  howTo: 'كل واحد يختار رقم في السر. لو حد تاني اختار نفس الرقم، انتو الاتنين تاخدوا صفر. خليك الديب الوحداني. لو محدش اتخبط في حد، أصغر رقم ياخد صفر.',
+  rule: 'نفس الرقم = تاخد صفر. مفيش تخبيط؟ أصغر رقم ياخد صفر.',
   setup: (ctx) => ({ max: Math.min(10, Math.max(4, ctx.players.length + 1)), picks: {} }),
   onInput(s, pid, inp) {
     if (inp.type !== 'pick' || pid in s.picks) return s;
@@ -381,11 +382,11 @@ export const loneWolf = {
     if (clash.length + asleep.length) {
       const losers = [...clash, ...asleep];
       const clashNums = [...new Set(clash.map((id) => s.picks[id]))].sort((a, b) => a - b).join('، ');
-      return { headline: clash.length ? `تخبيط على ${clashNums}! ${namesOf(ctx.players, clash)} يتخصم منهم نقطة 🐺` : `${namesOf(ctx.players, asleep)} ناموا. اتخصم منكم نقطة!`, winners: topWolves, losers, points: points(losers, topWolves), table };
+      return { headline: clash.length ? `تخبيط على ${clashNums}! ${namesOf(ctx.players, clash)} ياخدوا صفر 🐺` : `${namesOf(ctx.players, asleep)} ناموا. صفر ليهم!`, winners: topWolves, losers, points: points(losers, topWolves), table };
     }
     const low = Math.min(...lone.map((id) => s.picks[id]));
     const losers = lone.filter((id) => s.picks[id] === low);
-    return { headline: `كلكم ديابة وحدانية! أصغر رقم (${low}) يتخصم منه نقطة: ${namesOf(ctx.players, losers)}`, winners: topWolves, losers, points: points(losers, topWolves), table };
+    return { headline: `كلكم ديابة وحدانية! أصغر رقم (${low}) ياخد صفر: ${namesOf(ctx.players, losers)}`, winners: topWolves, losers, points: points(losers, topWolves), table };
   },
   view: (s, pid) => ({ max: s.max, mine: s.picks[pid] ?? null, picked: Object.keys(s.picks) }),
 };

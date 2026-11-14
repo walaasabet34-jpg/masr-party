@@ -365,9 +365,11 @@ export class Room {
     const deductions = {};
     for (const p of this.game.roster) {
       const earned = Number(res.points?.[p.id] ?? 0);
-      const deduction = !skipped && g.id !== 'roulette' && res.losers.includes(p.id) ? 1 : 0;
+      // a normal loss already scores 0; only a game's stated worst case costs a point, with its reason
+      const why = !skipped ? res.deduct?.[p.id] : null;
+      const deduction = why ? 1 : 0;
       changes[p.id] = earned - deduction;
-      if (deduction) deductions[p.id] = { amount: 1, reason: 'خسرت الجولة حسب قواعد اللعبة' };
+      if (deduction) deductions[p.id] = { amount: 1, reason: why };
       const player = this.player(p.id);
       if (player) player.stats.points += changes[p.id];
     }
@@ -433,7 +435,10 @@ export class Room {
     if (yes) {
       const from = this.player(c.from);
       if (from) from.stats.missionsDone += 1;
+      // applied once: the claim was removed above, so a repeated answer finds nothing
       if (from) from.stats.points += 2;
+      const target = this.player(c.target);
+      if (target) target.stats.points -= 1;
       this.assignMission(c.from);
     }
     this.touch();

@@ -86,7 +86,11 @@ test('full party flow with display host, 3 phones, reconnect and points', async 
     if (gid !== 'roulette') assert.ok(res.losers.length >= 1, res.headline);
     // Scores are final immediately; a losing player can ready without any extra step.
     const loser = phones.find((p) => p.id === res.losers[0]);
-    assert.equal(res.points[loser.id], -1);
+    // a normal loss is 0; only a stated worst case (sole most-voted, here) costs 1, with its reason
+    const ded = res.deductions[loser.id];
+    assert.equal(res.points[loser.id], (res.earned[loser.id] ?? 0) - (ded?.amount ?? 0));
+    if (ded) assert.ok(ded.reason && ded.reason.length > 3);
+    if (gid === 'would-you-rather' || gid === 'lone-wolf') assert.equal(ded, undefined);
     loser.emit('player:ready'); await sleep(150);
     assert.ok(tv.snap.ready.includes(loser.id));
     assert.equal(tv.snap.round, round);

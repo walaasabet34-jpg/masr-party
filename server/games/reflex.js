@@ -16,9 +16,9 @@ export const tapRace = {
   minPlayers: 2,
   durationMs: 12000,
   weight: 1.4,
-  tagline: 'استنى الأخضر. آخر واحد يدوس يتخصم منه نقطة.',
+  tagline: 'استنى الأخضر. آخر واحد يدوس ياخد صفر.',
   howTo: 'الموبايل هيقلب أحمر. استنى… استنى… أول ما يقلب أخضر دوس بأسرع ما عندك. خلي بالك من الفلاشات الفشنك!',
-  rule: 'أبطأ واحد يتخصم منه نقطة. اللي يدوس بدري أو ما يدوسش خالص يتخصم منه نقطة برضه.',
+  rule: 'أبطأ واحد ياخد صفر. اللي يدوس بدري أو ما يدوسش خالص ياخد صفر برضه.',
   setup(ctx) {
     const delayMs = 1800 + Math.floor(ctx.rng() * 3500);
     const fakeouts = ctx.rng() < 0.5 ? [Math.floor(delayMs * (0.3 + ctx.rng() * 0.4))] : [];
@@ -43,7 +43,7 @@ export const tapRace = {
     const r = rank(rows, { better: 'lower' });
     const first = r.winners[0];
     return {
-      headline: first ? `${nameOf(ctx.players, first)} كان الأسرع (${ms(s.taps[first])})` : r.rows.some((x) => x.status === 'foul') ? 'كله داس بدري!' : 'محدش داس. كله يتخصم منه نقطة!',
+      headline: first ? `${nameOf(ctx.players, first)} كان الأسرع (${ms(s.taps[first])})` : r.rows.some((x) => x.status === 'foul') ? 'كله داس بدري!' : 'محدش داس. كله ياخد صفر!',
       ...r,
       points: pointsFrom(r.rows, r.winners, r.losers),
       table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? ms(x.primary) : x.status === 'foul' ? '⚡ بدري' : '—', why: x.status === 'out' ? 'ما داسش' : undefined })) },
@@ -72,7 +72,7 @@ export const tapFrenzy = {
   durationMs: FRENZY + 1500,
   tagline: 'ست ثواني. افرم الزرار.',
   howTo: 'أول ما تبدأ، دوس على الزرار الكبير أكتر عدد مرات تقدر عليه لمدة ٦ ثواني. استخدم كل صوابعك.',
-  rule: 'أقل واحد داس يتخصم منه نقطة. لو تعادل: اللي وصل للرقم ده متأخر.',
+  rule: 'أقل واحد داس ياخد صفر. لو تعادل: اللي وصل للرقم ده متأخر.',
   setup: () => ({ startAt: null, counts: {}, lastAt: {} }),
   onTick: (s, ctx) => (s.startAt === null ? { ...s, startAt: ctx.now } : s),
   onInput(s, pid, inp, ctx) {
@@ -110,7 +110,7 @@ export const dontLetGo = {
   durationMs: GATHER + 15000 + GO_WINDOW,
   tagline: 'اثبت. وصباعك كمان.',
   howTo: 'دوس واستمر دايس على الدايرة. فضل ماسك وسط الحركات الفشنك. أول ما يقولك «سيب!» ارفع صباعك بأسرع ما يمكن.',
-  rule: 'اللي يسيب بدري يتخصم منه نقطة. لو محدش اتهز، أبطأ واحد سابه يتخصم منه نقطة.',
+  rule: 'اللي يسيب بدري ياخد صفر. لو محدش اتهز، أبطأ واحد سابه ياخد صفر.',
   setup: () => ({ stage: 'gather', gatherUntil: null, goAt: null, fakeouts: [], holding: {}, out: {}, releaseMs: {} }),
   onTick(s, ctx) {
     if (s.gatherUntil === null) return { ...s, gatherUntil: ctx.now + GATHER };
@@ -191,7 +191,7 @@ export const stopAtTen = {
   durationMs: 22000,
   tagline: 'عِد لعشرة. وانت مغمّض.',
   howTo: 'ساعة إيقاف هتشتغل على موبايلك وتختفي بعد ٣ ثواني. دوس «وقّف» لما تحس إن عدّى ١٠٫٠٠ ثانية بالظبط.',
-  rule: 'أبعد واحد عن ١٠ ثواني يتخصم منه نقطة. لو تعادل: اللي وقّف متأخر.',
+  rule: 'أبعد واحد عن ١٠ ثواني ياخد صفر. لو تعادل: اللي وقّف متأخر.',
   setup: () => ({ startAt: null, stops: {} }),
   onTick: (s, ctx) => (s.startAt === null ? { ...s, startAt: ctx.now } : s),
   onInput(s, pid, inp, ctx) {
@@ -230,7 +230,7 @@ export const quickDraw = {
   durationMs: 15000,
   tagline: 'اتنين بيتبارزوا. والباقي بيراهن.',
   howTo: 'اتنين بيتبارزوا: استنوا كلمة «اسحب!» وبعدين دوس الأول. الباقيين يراهنوا على الكسبان قبل السحب.',
-  rule: 'الأبطأ في المبارزة يتخصم منه نقطة. اللي راهن غلط أو ما راهنش يتخصم منه نقطة برضه.',
+  rule: 'كسبان المبارزة ياخد ٢ واللي راهن صح ياخد ١. الأبطأ في المبارزة (أو اللي ضرب بدري) يتخصم منه نقطة، واللي راهن غلط أو ما راهنش ياخد صفر.',
   setup(ctx) {
     const ids = shuffle(ctx.rng, ctx.players.map((p) => p.id));
     return { duelists: ids.slice(0, 2), drawAt: null, drawn: false, shots: {}, bets: {} };
@@ -259,6 +259,7 @@ export const quickDraw = {
     const slow = early.length ? early : t(a) === t(b) ? [a, b] : [t(a) > t(b) ? a : b];
     const winners = s.duelists.filter((id) => !slow.includes(id));
     const losers = [...slow];
+    const deduct = Object.fromEntries(slow.map((id) => [id, s.shots[id] === -1 ? 'ضربت قبل «اسحب!»' : 'خسرت المبارزة']));
     for (const p of ctx.players) {
       if (s.duelists.includes(p.id)) continue;
       const bet = s.bets[p.id];
@@ -270,6 +271,7 @@ export const quickDraw = {
     const shotTxt = (id) => (s.shots[id] === undefined ? '🔫 ما ضربش' : s.shots[id] < 0 ? '⚡ بدري' : ms(s.shots[id]));
     const points = Object.fromEntries(ctx.players.map((p) => [p.id, losers.includes(p.id) ? 0 : s.duelists.includes(p.id) ? 2 : 1]));
     return {
+      deduct,
       headline: w ? `🤠 ${nameOf(ctx.players, w)} كسب المبارزة${s.shots[w] >= 0 ? ` (${ms(s.shots[w])})` : ''}` : 'الاتنين باظوا المبارزة!',
       winners,
       losers,
@@ -317,7 +319,7 @@ export const whackAMole = {
   durationMs: WHACK_LEAD + WHACK + 1500,
   tagline: 'اضرب الفيران. مش القنابل.',
   howTo: 'فيران هتطلع من الخُرم على موبايلك لمدة ١٥ ثانية. اضرب كل واحد قبل ما يستخبى. لو ضربت قنبلة 💣 تخسر ٣ نقط.',
-  rule: 'أقل سكور يتخصم منه نقطة. لو تعادل: اللي وصل للسكور ده متأخر.',
+  rule: 'أقل سكور ياخد صفر. لو تعادل: اللي وصل للسكور ده متأخر.',
   setup(ctx) {
     const moles = [];
     const busy = Array(9).fill(0);
@@ -401,7 +403,7 @@ export const snap = {
   durationMs: SNAP_LEAD + 21000,
   tagline: 'اتنين زي بعض؟ اخبط!',
   howTo: 'كارتين بيتقلبوا ورا بعض. أول ما يطلعوا نفس الصورة، اخبط «خبطة!». فيه ٣ أزواج. لو خبطت على كروت مختلفة تخسر نقطة.',
-  rule: 'أقل نقط يتخصم منه نقطة. لو تعادل: الإيد الأبطأ.',
+  rule: 'أقل نقط ياخد صفر. لو تعادل: الإيد الأبطأ.',
   setup(ctx) {
     const set = pickOne(ctx.rng, SNAP_SETS);
     const pairAt = new Set();

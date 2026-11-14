@@ -121,3 +121,47 @@ test('boat ride: losses stop at 5 per player, getting off still pays +3', () => 
   assert.ok(b.off.includes('a'));
   assert.equal(b.points.a - start, -5 + 3);
 });
+
+test('a normal loss scores 0 with no deduction; only stated worst cases cost 1, with a reason', () => {
+  const r = new Room('WRST'); r.displayToken = 'tv';
+  const ps = ['منى', 'ريم', 'ولاء'].map((name) => r.addPlayer({ name }).player);
+  // Would You Rather: the minority loses but is not deducted
+  r.nextGameId = 'would-you-rather'; r.startGame(0);
+  r.input(ps[0].id, { type: 'pick', payload: 1 }, 100);
+  r.input(ps[1].id, { type: 'pick', payload: 0 }, 100);
+  r.input(ps[2].id, { type: 'pick', payload: 0 }, 100);
+  r.tick(200);
+  assert.ok(r.lastResult.losers.includes(ps[0].id));
+  assert.equal(r.lastResult.deductions[ps[0].id], undefined);
+  assert.equal(ps[0].stats.points, 0);
+  // Most Likely To: the sole most-voted is deducted, with the reason shown
+  r.nextGameId = 'most-likely-to'; r.startGame(1000);
+  for (const p of ps) r.input(p.id, { type: 'vote', payload: ps[1].id }, 1100);
+  r.tick(1200);
+  assert.deepEqual(r.lastResult.deductions[ps[1].id], { amount: 1, reason: 'خدت أكتر أصوات لوحدك' });
+  assert.equal(r.lastResult.points[ps[1].id], -1);
+  // a tie for most votes: nobody is deducted
+  r.nextGameId = 'most-likely-to'; r.startGame(2000);
+  r.input(ps[0].id, { type: 'vote', payload: ps[1].id }, 2100);
+  r.input(ps[1].id, { type: 'vote', payload: ps[0].id }, 2100);
+  r.input(ps[2].id, { type: 'vote', payload: ps[2].id }, 2100);
+  r.tick(2200);
+  assert.deepEqual(r.lastResult.deductions, {});
+});
+
+test('mission: +2 agent, −1 target, once, and only the target can confirm', () => {
+  const r = new Room('MSSN'); r.displayToken = 'tv';
+  const ps = ['منى', 'ريم', 'ولاء'].map((name) => r.addPlayer({ name }).player);
+  r.updateSettings('display', { missions: true, enabledGames: ['would-you-rather'] });
+  r.start('display', 0);
+  const agent = ps[0];
+  const target = r.player(r.missions[agent.id].target);
+  r.claimMission(agent.id);
+  const id = r.claims[0].id;
+  r.answerClaim(agent.id, id, true); // not the target: ignored
+  assert.equal(agent.stats.points, 0);
+  r.answerClaim(target.id, id, true);
+  r.answerClaim(target.id, id, true); // a repeat finds nothing
+  assert.equal(agent.stats.points, 2);
+  assert.equal(target.stats.points, -1);
+});
