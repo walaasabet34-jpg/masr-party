@@ -7,6 +7,7 @@ import { ResultTable, Reveal, Gallery } from './Results.jsx';
 import { GAME_UI } from '../games/index.js';
 import { BoatBig, BoatPhone } from './Boat.jsx';
 import { sfx, haptic } from '../sound.js';
+import { ChatButton, ChatSheet, ChatSide, ChatToast, useChatSound } from '../ui/Chat.jsx';
 
 const isLocal = () => ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 let lanOrigin = null;
@@ -29,6 +30,7 @@ function accentFor(snap, meta) {
 }
 
 function BigShell({ snap }) {
+  useChatSound();
   const meta = useGameMeta(snap.currentGameId ?? snap.nextGameId);
   const color = accentFor(snap, meta);
   return (
@@ -45,9 +47,16 @@ function BigShell({ snap }) {
             )}
           </div>
         }
-        right={<Menu extra={(close) => <HostMenuItems snap={snap} close={close} />} />}
+        right={
+          <>
+            <ChatButton />
+            <Menu extra={(close) => <HostMenuItems snap={snap} close={close} />} />
+          </>
+        }
       />
-      <div className="relative z-10 flex flex-1 flex-col px-8 pb-6">
+      <ChatToast />
+      <div className="relative z-10 flex flex-1">
+      <div className="flex min-w-0 flex-1 flex-col px-8 pb-6">
         <PausedBanner snap={snap} />
         <AnimatePresence mode="wait">
           <motion.div key={snap.phase + (snap.phase === 'playing' ? snap.round : '')} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="flex flex-1 flex-col">
@@ -60,11 +69,15 @@ function BigShell({ snap }) {
           </motion.div>
         </AnimatePresence>
       </div>
+      <ChatSide snap={snap} readOnly />
+      </div>
     </div>
   );
 }
 
 function PhoneShell({ snap }) {
+  useChatSound();
+  const wide = useIsBig();
   const P = playerMap(snap);
   const me = P[snap.me];
   const meta = useGameMeta(snap.currentGameId ?? snap.nextGameId);
@@ -80,9 +93,17 @@ function PhoneShell({ snap }) {
             {snap.phase !== 'lobby' && snap.round > 0 && snap.settings.format === 'party' && <RoundChip snap={snap} />}
           </div>
         }
-        right={<Menu extra={(close) => <PhoneMenuItems snap={snap} close={close} />} />}
+        right={
+          <>
+            <ChatButton />
+            <Menu extra={(close) => <PhoneMenuItems snap={snap} close={close} />} />
+          </>
+        }
       />
-      <div className="relative z-10 flex flex-1 flex-col">
+      <ChatToast />
+      {!wide && <ChatSheet snap={snap} />}
+      <div className="relative z-10 flex flex-1">
+      <div className="flex min-w-0 flex-1 flex-col">
         <PausedBanner snap={snap} />
         <ClaimOverlay snap={snap} />
         <JudgeOverlay snap={snap} />
@@ -96,6 +117,8 @@ function PhoneShell({ snap }) {
             {snap.phase === 'ended' && <Ended snap={snap} />}
           </motion.div>
         </AnimatePresence>
+      </div>
+      {wide && <ChatSide snap={snap} />}
       </div>
     </div>
   );

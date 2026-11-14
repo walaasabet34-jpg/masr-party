@@ -28,6 +28,10 @@ function newCode() {
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2', '.woff': 'font/woff', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon' };
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  if (url.pathname === '/api/health') {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    return res.end(JSON.stringify({ ok: true, rooms: rooms.size, uptime: Math.round(process.uptime()) }));
+  }
   if (url.pathname === '/api/info') {
     res.writeHead(200, { 'content-type': 'application/json' });
     // LAN addresses let a big screen opened on localhost print a QR that phones can reach.
@@ -77,12 +81,23 @@ function closeRoom(room, reason) {
   rooms.delete(room.code);
 }
 
+function wireChat(room) {
+  if (room.onChat) return;
+  room.onChat = (m) => {
+    for (const c of conns) if (c.room === room) send(c, { t: 'chat:msg', a: [m] });
+  };
+}
+
 function bind(c, room, role, playerId = null) {
+  wireChat(room);
   if (c.room && c.room !== room && c.role === 'player') c.room.setConnected(c.playerId, false);
   c.room = room;
   c.role = role;
   c.playerId = playerId;
   if (playerId) room.setConnected(playerId, true);
+  // full history for whoever (re)joins, sent right after the join reply (see the dispatcher);
+  // the client merges by id, so nothing shows twice
+  c.needsHistory = true;
 }
 
 const handlers = {
@@ -183,6 +198,16 @@ const handlers = {
   'room:playAgain'(c) {
     c.room?.playAgain(who(c), Date.now());
   },
+  'chat:send'(c, { text, cid } = {}) {
+    const room = c.room;
+    const p = c.role === 'player' && room?.player(c.playerId);
+    if (!p) return { ok: false, error: 'not_member' };
+    return room.chat.send(p, text, cid);
+  },
+  'chat:history'(c, { after } = {}) {
+    if (!c.room) return { ok: false, error: 'not_member' };
+    return { ok: true, messages: c.room.chat.since(Number(after) || 0) };
+  },
   'boat:act'(c, act) {
     c.room?.boatAction(who(c), act ?? {}, Date.now());
   },
@@ -231,6 +256,10 @@ wss.on('connection', (ws) => {
       result = { ok: false, error: 'server_error' };
     }
     if (typeof msg.id === 'number') send(c, { ack: msg.id, a: [result ?? { ok: true }] });
+    if (c.needsHistory && c.room) {
+      c.needsHistory = false;
+      send(c, { t: 'chat:history', a: [c.room.chat.since(0)] });
+    }
     for (const r of new Set([before, c.room])) if (r && rooms.has(r.code) && r.version !== r.sentVersion) push(r);
   });
   ws.on('close', () => {

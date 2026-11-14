@@ -14,8 +14,9 @@ const mostLikely = {
         {v.prompt}
       </Prompt>
       <GameTimer snap={snap} />
-      {v.myVote ? <Sent>صوّت ✓</Sent> : <PlayerGrid players={roster(snap)} onPick={(id) => send('vote', id)} />}
-      {v.myVote && <Done ids={v.voted} snap={snap} label="صوّتوا" />}
+      <PlayerGrid players={roster(snap)} selected={v.myVote} onPick={(id) => send('vote', id)} />
+      {v.myVote && <div className="text-center text-sm text-ink-muted">تقدر تغيّر صوتك لحد ما الوقت يخلص</div>}
+      <Done ids={v.voted} snap={snap} label="صوّتوا" />
     </div>
   ),
   Big: ({ snap, v }) => (
@@ -37,7 +38,7 @@ const wyr = {
       <div className="text-center font-display font-black text-2xl">تختار إيه؟</div>
       <GameTimer snap={snap} />
       {[v.a, v.b].map((t, k) => (
-        <button key={k} type="button" disabled={v.myVote !== null} onClick={() => (send('pick', k), sfx.pop())} className={`press brutal flex-1 rounded-[30px] p-5 font-display font-black text-2xl ${v.myVote === k ? 'ring-4 ring-white' : ''} ${v.myVote !== null && v.myVote !== k ? 'opacity-40' : ''}`} style={{ background: k ? HEX.cyan : HEX.pink, color: '#000' }}>
+        <button key={k} type="button" onClick={() => (send('pick', k), sfx.pop())} className={`press brutal flex-1 rounded-[30px] p-5 font-display font-black text-2xl ${v.myVote === k ? 'ring-4 ring-white' : ''} ${v.myVote !== null && v.myVote !== k ? 'opacity-40' : ''}`} style={{ background: k ? HEX.cyan : HEX.pink, color: '#000' }}>
           {k ? '🅱️' : '🅰️'} {t}
         </button>
       ))}
@@ -76,7 +77,7 @@ const imposter = {
         <div className="flex flex-1 flex-col gap-4">
           <Prompt color="violet">مين الدخيل؟</Prompt>
           <GameTimer snap={snap} until={v.voteUntil} total={30000} />
-          {v.myVote ? <Sent>صوّت ✓</Sent> : <PlayerGrid players={ps.filter((p) => p.id !== snap.me)} onPick={(id) => send('vote', id)} />}
+          <PlayerGrid players={ps.filter((p) => p.id !== snap.me)} selected={v.myVote} onPick={(id) => send('vote', id)} />
           <Done ids={v.voted} snap={snap} label="صوّتوا" />
         </div>
       );
@@ -136,7 +137,7 @@ const imposter = {
 };
 
 // ---------------------------------------------------------------- duels (Quip Clash + Doodle Duel)
-function DuelVotePhone({ snap, v, renderEntry }) {
+function DuelVotePhone({ snap, v, renderEntry, lock }) {
   const c = v.current;
   const P = playerMap(snap);
   if (!c) return <Waiting />;
@@ -154,7 +155,7 @@ function DuelVotePhone({ snap, v, renderEntry }) {
           const isMine = i === c.mine;
           const picked = c.myVote === i;
           return (
-            <button key={i} type="button" disabled={v.stage !== 'vote' || isMine || c.myVote !== null || (mine && c.entries.length === 2)} onClick={() => (send('vote', { pick: i }), sfx.pop())} className={`press brutal rounded-[26px] bg-white p-3 text-right text-black ${picked ? 'ring-4 ring-lime' : ''}`}>
+            <button key={i} type="button" disabled={v.stage !== 'vote' || isMine || (lock && c.myVote !== null) || (mine && c.entries.length === 2)} onClick={() => (send('vote', { pick: i }), sfx.pop())} className={`press brutal rounded-[26px] bg-white p-3 text-right text-black ${picked ? 'ring-4 ring-lime' : ''}`}>
               {renderEntry(e)}
               {isMine && <div className="mt-1 text-xs font-black text-violet">بتاعتك</div>}
               {c.votes && (
@@ -256,7 +257,7 @@ const doodleDuel = {
           )}
         </div>
       );
-    return <DuelVotePhone snap={snap} v={v} renderEntry={(e) => <Drawing drawing={e} className="rounded-xl" />} />;
+    return <DuelVotePhone snap={snap} v={v} lock renderEntry={(e) => <Drawing drawing={e} className="rounded-xl" />} />;
   },
   Big: ({ snap, v }) => <DuelBig snap={snap} v={v} writing="ارسموا على موبايلاتكم! 🖍️" sub={v.drawn} renderEntry={(e) => <Drawing drawing={e} className="rounded-2xl" />} />,
 };
@@ -280,7 +281,7 @@ const bigFatLie = {
         <div className="text-center font-display font-black">{v.stage === 'pick' ? 'أنهي فيهم الحقيقة؟' : 'الحقيقة طلعت…'}</div>
         <div className="flex flex-col gap-2">
           {v.options.map((o, i) => (
-            <button key={i} type="button" disabled={v.stage !== 'pick' || o.mine || v.myPick !== null} onClick={() => (send('pick', { i }), sfx.pop())} className={`press brutal rounded-2xl p-3 text-right font-display font-black text-xl ${o.truth ? 'bg-lime text-black' : v.myPick === i ? 'bg-yellow text-black' : 'bg-white text-black'} ${o.mine ? 'opacity-50' : ''}`}>
+            <button key={i} type="button" disabled={v.stage !== 'pick' || o.mine || (v.myPick !== null && v.options[v.myPick]?.mine)} onClick={() => (send('pick', { i }), sfx.pop())} className={`press brutal rounded-2xl p-3 text-right font-display font-black text-xl ${o.truth ? 'bg-lime text-black' : v.myPick === i ? 'bg-yellow text-black' : 'bg-white text-black'} ${o.mine ? 'opacity-50' : ''}`}>
               {o.text} {o.mine && <span className="text-xs">(بتاعك)</span>}
               {o.pickers && (
                 <div className="mt-1 flex flex-wrap items-center gap-1 text-sm">

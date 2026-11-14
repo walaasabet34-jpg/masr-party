@@ -4,6 +4,7 @@ import { GAMES, getGame, META } from './games/index.js';
 import { rng, shuffle, cleanText } from './lib/util.js';
 import { penaltyFor } from './penalty.js';
 import { MISSIONS } from './content/missions.js';
+import { Chat } from './chat.js';
 import { createBoat, boatTick, boatAct, boatView, boatAwards, BOAT_MAX } from './boat.js';
 
 export const PARTY_MAX = 20;
@@ -51,6 +52,7 @@ export class Room {
     this.boat = null;
     this.closed = null;
     this.version = 0;
+    this.chat = new Chat((m) => this.onChat?.(m));
   }
 
   // ------------------------------------------------------------ helpers
@@ -105,6 +107,7 @@ export class Room {
     };
     this.applyLook(p, info);
     this.players.push(p);
+    this.chat.system('join', p);
     if (asHost) this.hostId = p.id;
     if (this.settings.missions && this.phase !== 'lobby') this.assignMission(p.id);
     this.touch();
@@ -124,6 +127,10 @@ export class Room {
     if (!p) return;
     p.connected = on;
     p.awaySince = on ? null : Date.now();
+    if (on && p.awayAnnounced) {
+      p.awayAnnounced = false;
+      this.chat.system('back', p);
+    }
     this.touch();
   }
 
@@ -137,6 +144,7 @@ export class Room {
     this.players = this.players.filter((x) => x.id !== id);
     this.ready = this.ready.filter((x) => x !== id);
     delete this.missions[id];
+    this.chat.system('left', p);
     if (this.isHost(id)) this.hostId = null;
     this.touch();
   }
@@ -171,6 +179,7 @@ export class Room {
     if (!p) return;
     this.kicked.add(p.token);
     this.players = this.players.filter((x) => x.id !== id);
+    this.chat.system('kicked', p);
     this.ready = this.ready.filter((x) => x !== id);
     this.touch();
     return p;
@@ -329,6 +338,12 @@ export class Room {
   }
 
   tick(now) {
+    for (const p of this.players) {
+      if (!p.connected && !p.awayAnnounced && p.awaySince && now - p.awaySince > 8000) {
+        p.awayAnnounced = true;
+        this.chat.system('away', p);
+      }
+    }
     if (this.phase === 'intro' && now >= this.phaseEndsAt) this.startGame(now);
     else if (this.phase === 'playing') {
       const g = getGame(this.game.id);

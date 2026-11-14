@@ -23,7 +23,7 @@ export const mostLikelyTo = {
     return { prompt: q.text, votes: {} };
   },
   onInput(s, pid, inp, ctx) {
-    if (inp.type !== 'vote' || !has(ctx, String(inp.payload)) || pid in s.votes) return s;
+    if (inp.type !== 'vote' || !has(ctx, String(inp.payload))) return s; // can change until the vote closes (as in the reference)
     return { ...s, votes: { ...s.votes, [pid]: String(inp.payload) } };
   },
   isComplete: (s, ctx) => ctx.players.every((p) => p.id in s.votes),
@@ -62,7 +62,7 @@ export const wouldYouRather = {
     return { a: q.a, b: q.b, votes: {} };
   },
   onInput(s, pid, inp) {
-    if (inp.type !== 'pick' || (inp.payload !== 0 && inp.payload !== 1) || pid in s.votes) return s;
+    if (inp.type !== 'pick' || (inp.payload !== 0 && inp.payload !== 1)) return s;
     return { ...s, votes: { ...s.votes, [pid]: inp.payload } };
   },
   isComplete: (s, ctx) => ctx.players.every((p) => p.id in s.votes),
@@ -141,7 +141,7 @@ export const imposter = {
     }
     if (s.stage === 'vote' && inp.type === 'vote') {
       const v = String(inp.payload);
-      if (v === pid || !has(ctx, v) || pid in s.votes) return s;
+      if (v === pid || !has(ctx, v)) return s;
       return { ...s, votes: { ...s.votes, [pid]: v } };
     }
     return s;
@@ -214,10 +214,10 @@ function duelVoting(stageWrite) {
       }
       return s;
     },
-    vote(s, pid, inp, ctx) {
+    vote(s, pid, inp, ctx, lock = false) {
       const m = s.matchups[s.k];
       const author = m?.order[Number(inp.payload?.pick)];
-      if (!m || !author || author === pid || pid in m.votes || !mayVote(m, pid, ctx.players.length)) return s;
+      if (!m || !author || author === pid || (lock && pid in m.votes) || !mayVote(m, pid, ctx.players.length)) return s;
       return { ...s, matchups: s.matchups.map((x, i) => (i === s.k ? { ...x, votes: { ...x.votes, [pid]: author } } : x)) };
     },
     resolve(s, ctx, isBlank) {
@@ -368,7 +368,7 @@ export const doodleDuel = {
       if (blankDrawing(d)) return s;
       return { ...s, matchups: s.matchups.map((m, j) => (j === i ? { ...m, entries: { ...m.entries, [pid]: d } } : m)) };
     }
-    if (s.stage === 'vote' && inp.type === 'vote') return doodleDuelV.vote(s, pid, inp, ctx);
+    if (s.stage === 'vote' && inp.type === 'vote') return doodleDuelV.vote(s, pid, inp, ctx, true);
     return s;
   },
   isComplete: (s) => s.stage === 'done',
@@ -456,7 +456,7 @@ export const bigFatLie = {
     if (s.stage === 'pick' && inp.type === 'pick') {
       const i = Number(inp.payload?.i);
       const o = s.options[i];
-      if (!o || o.authors.includes(pid) || pid in s.picks) return s;
+      if (!o || o.authors.includes(pid) || s.options[s.picks[pid]]?.authors.includes(pid)) return s;
       return { ...s, picks: { ...s.picks, [pid]: i } };
     }
     return s;

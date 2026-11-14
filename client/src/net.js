@@ -35,6 +35,13 @@ let state = {
   muted: LS.get('muted', false),
   noDrinks: LS.get('noDrinks', false),
   resuming: !!LS.get('session'),
+  // chat
+  chat: [], // messages from the server, sorted by id
+  chatPending: [], // { cid, text, error? } sent but not yet confirmed
+  chatOpen: false,
+  chatUnread: 0,
+  chatSound: LS.get('chatSound', true),
+  chatToast: null,
 };
 const subs = new Set();
 const set = (patch) => {
@@ -155,6 +162,38 @@ handlers['room:state'] = (snap) => {
   const clockOffset = state.clockOffset === 0 ? off : state.clockOffset * 0.7 + off * 0.3;
   set({ snap, clockOffset, error: null, closed: null, resuming: false });
 };
+function mergeChat(list) {
+  const byId = new Map(state.chat.map((m) => [m.id, m]));
+  let fresh = 0;
+  let lastFresh = null;
+  for (const m of list) {
+    if (!byId.has(m.id)) {
+      byId.set(m.id, m);
+      if (m.kind === 'user' && m.pid !== state.snap?.me) {
+        fresh++;
+        lastFresh = m;
+      }
+    }
+  }
+  const chat = [...byId.values()].sort((a, b) => a.id - b.id);
+  return { chat, fresh, lastFresh };
+}
+const chatListeners = new Set();
+export const onChatMessage = (f) => (chatListeners.add(f), () => chatListeners.delete(f));
+handlers['chat:history'] = (list) => {
+  const { chat } = mergeChat(list);
+  set({ chat });
+};
+handlers['chat:msg'] = (m) => {
+  const { chat, fresh, lastFresh } = mergeChat([m]);
+  const patch = { chat };
+  if (fresh && !state.chatOpen) {
+    patch.chatUnread = state.chatUnread + fresh;
+    patch.chatToast = { id: lastFresh.id, name: lastFresh.name, sticker: lastFresh.sticker, color: lastFresh.color, text: lastFresh.text };
+  }
+  set(patch);
+  if (fresh) chatListeners.forEach((f) => f(lastFresh));
+};
 handlers['room:closed'] = (reason) => {
   saveSession(null);
   set({ snap: null, closed: reason, resuming: false });
@@ -162,7 +201,22 @@ handlers['room:closed'] = (reason) => {
 
 function saveSession(s) {
   LS.set('session', s);
-  set({ session: s });
+  const sameRoom = s && state.session && s.code === state.session.code;
+  set({ session: s, ...(sameRoom ? {} : { chat: [], chatPending: [], chatUnread: 0, chatToast: null }) });
+}
+
+// resend chat that was typed while the line was down (same cid: the server keeps it once)
+function flushChat() {
+  for (const p of state.chatPending) if (!p.error) sendChat(p);
+}
+async function sendChat(p) {
+  try {
+    const r = await request('chat:send', { text: p.text, cid: p.cid });
+    if (r?.ok) set({ chatPending: state.chatPending.filter((x) => x.cid !== p.cid) });
+    else if (r?.error) set({ chatPending: state.chatPending.map((x) => (x.cid === p.cid ? { ...x, error: r.error } : x)) });
+  } catch {
+    /* timeout: stays pending and is resent after reconnecting */
+  }
 }
 
 async function resume() {
@@ -170,6 +224,7 @@ async function resume() {
   if (!s) return set({ resuming: false });
   try {
     const r = s.role === 'display' ? await request('room:attachDisplay', { code: s.code, displayToken: s.displayToken }) : await request('room:join', { code: s.code, playerId: s.playerId, token: s.token });
+    if (r?.ok) flushChat();
     if (!r?.ok) {
       saveSession(null);
       set({ snap: null, resuming: false, error: r?.error === 'room_not_found' ? 'party_gone' : r?.error });
@@ -255,6 +310,23 @@ export const api = {
     set({ snap: null, error: null, closed: null });
   },
   clearError: () => set({ error: null, closed: null }),
+  chatSend(text) {
+    const cid = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 40);
+    const p = { cid, text };
+    set({ chatPending: [...state.chatPending, p] });
+    sendChat(p);
+  },
+  chatDismiss(cid) {
+    set({ chatPending: state.chatPending.filter((x) => x.cid !== cid) });
+  },
+  chatOpen(open) {
+    set({ chatOpen: open, ...(open ? { chatUnread: 0, chatToast: null } : {}) });
+  },
+  chatToggleSound() {
+    LS.set('chatSound', !state.chatSound);
+    set({ chatSound: !state.chatSound });
+  },
+  chatClearToast: () => set({ chatToast: null }),
 };
 
 // handy for automated browser tests and debugging from the console

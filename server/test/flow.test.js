@@ -82,7 +82,7 @@ test('full party flow with display host, 3 phones, reconnect and drinks', async 
     await until(() => tv.snap.phase === 'briefing');
     const res = tv.snap.lastResult;
     assert.equal(res.gameId, gid);
-    if (gid === 'most-likely-to') assert.deepEqual(res.losers, [phones[0].id]); // second vote ignored: no double voting
+    if (gid === 'most-likely-to') assert.deepEqual(res.losers, [phones[2].id]); // votes can change until the vote closes; the last one counts
     if (gid !== 'roulette') assert.ok(res.losers.length >= 1, res.headline);
     // losers cannot ready up before their drink is judged
     const loser = phones.find((p) => p.id === res.losers[0]);
