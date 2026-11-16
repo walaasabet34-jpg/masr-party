@@ -7,6 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import { WebSocketServer } from 'ws';
 import { Room, META } from './room.js';
+import { posthogLogger, shutdownPosthogLogs } from './posthog-logs.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'client', 'dist');
 const PORT = Number(process.env.PORT) || 8787;
@@ -112,6 +113,7 @@ const handlers = {
     rooms.set(code, room);
     const { player } = room.addPlayer(info, { asHost: true });
     bind(c, room, 'player', player.id);
+    posthogLogger.emit({ severityText: 'INFO', body: 'party room created', attributes: { party_format: room.settings.format, host_surface: 'phone' } });
     return { ok: true, code, playerId: player.id, token: player.token };
   },
   'room:createDisplay'(c, info = {}) {
@@ -120,6 +122,7 @@ const handlers = {
     room.displayToken = randomBytes(16).toString('hex');
     rooms.set(code, room);
     bind(c, room, 'display');
+    posthogLogger.emit({ severityText: 'INFO', body: 'party room created', attributes: { party_format: room.settings.format, host_surface: 'display' } });
     return { ok: true, code, displayToken: room.displayToken };
   },
   'room:attachDisplay'(c, { code, displayToken } = {}) {
@@ -136,6 +139,7 @@ const handlers = {
     const r = room.addPlayer(info);
     if (r.error) return { ok: false, error: r.error };
     bind(c, room, 'player', r.player.id);
+    posthogLogger.emit({ severityText: 'INFO', body: 'party player joined', attributes: { party_format: room.settings.format, player_count: room.players.length } });
     return { ok: true, code: room.code, playerId: r.player.id, token: r.player.token };
   },
   'player:look'(c, info = {}) {
@@ -248,6 +252,7 @@ wss.on('connection', (ws) => {
       result = h(c, ...(Array.isArray(msg.a) ? msg.a : []));
     } catch (e) {
       console.error('handler error', msg.t, e);
+      posthogLogger.emit({ severityText: 'ERROR', body: 'websocket handler failed', attributes: { handler: msg.t, error_type: e instanceof Error ? e.name : 'unknown_error' } });
       result = { ok: false, error: 'server_error' };
     }
     if (typeof msg.id === 'number') send(c, { ack: msg.id, a: [result ?? { ok: true }] });
@@ -292,4 +297,14 @@ setInterval(() => {
   for (const room of rooms.values()) if (room.players.some((p) => !p.connected)) room.touch();
 }, 1000);
 
-server.listen(PORT, () => console.log(`طلقة شغّالة على http://localhost:${PORT}`));
+server.listen(PORT, () => {
+  console.log(`طلقة شغّالة على http://localhost:${PORT}`);
+  posthogLogger.emit({ severityText: 'INFO', body: 'party server started', attributes: { port: PORT } });
+});
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.once(signal, async () => {
+    await shutdownPosthogLogs();
+    process.exit(0);
+  });
+}
