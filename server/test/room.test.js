@@ -170,7 +170,7 @@ test('a pair cannot be forced to start with only one connected player', () => {
 });
 
 test('rooms keep accepting more than two players up to their documented limits', () => {
-  for (const [format, cap] of [['party', 20], ['boat', 12]]) {
+  for (const [format, cap] of [['party', 20], ['boat', 4]]) {
     const r = new Room('MORE', { format });
     r.addPlayer({ name: 'المضيف' }, { asHost: true });
     for (let i = 1; i < cap; i++) assert.ok(r.addPlayer({ name: 'صاحب' + i }).player);

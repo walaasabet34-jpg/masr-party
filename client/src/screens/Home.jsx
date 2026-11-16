@@ -21,7 +21,7 @@ export function GameCard({ kind, onPick, compact, tilt = 0, selected }) {
       {party ? <PartyArt height={compact ? 200 : 250} /> : <BoatArt height={compact ? 200 : 250} />}
       <div className="border-t-4 border-black p-5">
         <div className="flex items-center gap-3">
-          <span className="text-4xl">{party ? '🎉' : '⛵'}</span>
+          <span className="text-4xl">{party ? '🎉' : '🃏'}</span>
           <h2 className="font-display font-black text-4xl">{party ? T.partyMix : T.boatName}</h2>
         </div>
         <p className="mt-2 text-ink-muted leading-relaxed">{party ? T.partyMixLong : T.boatLong}</p>

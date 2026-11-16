@@ -4,7 +4,7 @@ import { GAMES, getGame, META } from './games/index.js';
 import { rng, shuffle, cleanText } from './lib/util.js';
 import { MISSIONS } from './content/missions.js';
 import { Chat } from './chat.js';
-import { createBoat, boatTick, boatAct, boatView, boatAwards, BOAT_MAX } from './boat.js';
+import { createBoat, boatTick, boatAct, boatView, boatAwards, BOAT_MAX } from './egyptian.js';
 
 export const PARTY_MAX = 20;
 const INTRO_MS = 3500;
@@ -194,7 +194,7 @@ export class Room {
       p.excluded = !p.connected;
     }
     if (this.settings.format === 'boat') {
-      if (n > BOAT_MAX) return;
+      if (![2, 4].includes(n)) return;
       this.boat = createBoat(this.active(), rng);
       this.phase = 'boat';
       this.touch();
