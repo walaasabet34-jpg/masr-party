@@ -173,7 +173,7 @@ function PhoneMenuItems({ snap, close }) {
 // ======================================================================= lobby
 function Seats({ snap, big }) {
   const P = snap.players;
-  const max = snap.settings.format === 'boat' ? 12 : 20;
+  const max = snap.settings.format === 'boat' ? 4 : 20;
   const [kick, setKick] = useState(null);
   return (
     <div className={`grid gap-3 ${big ? 'grid-cols-4 xl:grid-cols-5' : 'grid-cols-3'}`}>
@@ -304,7 +304,7 @@ function SettingsPanel({ snap }) {
     const m = r * 2;
     return m >= 60 ? `حوالي ${Math.round((m / 60) * 2) / 2} ساعة` : `حوالي ${m} دقيقة`;
   };
-  if (!party) return null;
+  if (!party) return <div className="rounded-2xl bg-black/30 p-4 text-sm">لاعبين ضد بعض أو ٤ في فريقين. أول وتالت لاعب فريق، وتاني ورابع لاعب فريق. اللعب لحد ١٠١ نقطة؛ كل واحد بيشوف ورقه بس.</div>;
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-3 gap-2">
@@ -345,7 +345,8 @@ function SettingsPanel({ snap }) {
 }
 
 function LobbyBig({ snap }) {
-  const ok = snap.players.filter((p) => p.connected).length >= 2;
+  const count = snap.players.filter((p) => p.connected).length;
+  const ok = snap.settings.format === 'boat' ? [2, 4].includes(count) : count >= 2;
   return (
     <div className="grid flex-1 grid-cols-[minmax(0,320px)_1fr_minmax(0,380px)] gap-8">
       <div className="flex flex-col items-center gap-4">
@@ -358,7 +359,7 @@ function LobbyBig({ snap }) {
       </div>
       <div className="flex flex-col gap-4">
         <h2 className="font-display font-black text-4xl">
-          {snap.settings.format === 'boat' ? `⛵ ${T.boatName}` : `🎉 ${T.partyMix}`} <span className="text-ink-muted text-2xl">· {snap.players.length}</span>
+          {snap.settings.format === 'boat' ? `🃏 ${T.boatName}` : `🎉 ${T.partyMix}`} <span className="text-ink-muted text-2xl">· {snap.players.length}</span>
         </h2>
         {snap.players.length ? <Seats snap={snap} big /> : <div className="flex flex-1 items-center justify-center font-display font-black text-3xl text-ink-muted">{T.waitingForPlayers}</div>}
       </div>
@@ -368,7 +369,7 @@ function LobbyBig({ snap }) {
           <div className="font-display font-black text-xl text-ink-muted">{T.chip2to12} · {T.chipDeck}</div>
         )}
         <div className="mt-auto">
-          {ok ? <HoldButton label={`${T.startNight} 🚀`} onDone={api.start} color={snap.settings.format === 'boat' ? 'cyan' : T.modes[snap.settings.mode].color} className="w-full" /> : <Btn color="dark" size="lg" className="w-full" disabled>{T.needPlayers} ٢</Btn>}
+          {ok ? <HoldButton label={`${T.startNight} 🚀`} onDone={api.start} color={snap.settings.format === 'boat' ? 'cyan' : T.modes[snap.settings.mode].color} className="w-full" /> : <Btn color="dark" size="lg" className="w-full" disabled>{snap.settings.format === 'boat' ? 'محتاجين ٢ أو ٤ لاعيبة متصلين' : `${T.needPlayers} ٢`}</Btn>}
           {ok && <div className="mt-2 text-center text-xs text-ink-muted">{T.holdToStart}</div>}
         </div>
       </div>
@@ -383,7 +384,8 @@ function LobbyPhone({ snap }) {
   const { identity } = useStore();
   const [showQr, setShowQr] = useState(false);
   const [copied, setCopied] = useState(false);
-  const ok = snap.players.filter((p) => p.connected).length >= 2;
+  const count = snap.players.filter((p) => p.connected).length;
+  const ok = snap.settings.format === 'boat' ? [2, 4].includes(count) : count >= 2;
   const share = async () => {
     const url = joinUrl(snap.code);
     try {
@@ -418,11 +420,11 @@ function LobbyPhone({ snap }) {
           </h3>
           <Seats snap={snap} />
           <div className="mt-5">
-            <p className="mb-3 text-center text-sm text-ink-muted">{T.twoPlayersHint} {T.duoGamesHint}</p>
+            <p className="mb-3 text-center text-sm text-ink-muted">{snap.settings.format === 'boat' ? T.chip2to12 : `${T.twoPlayersHint} ${T.duoGamesHint}`}</p>
             <SettingsPanel snap={snap} />
           </div>
           <div className="dock-bottom mt-auto pt-5">
-            {ok ? <HoldButton label={`${T.startNight} 🚀`} onDone={api.start} color={snap.settings.format === 'boat' ? 'cyan' : T.modes[snap.settings.mode].color} className="w-full" /> : <Btn color="dark" size="lg" className="w-full" disabled>{T.needPlayers} ٢</Btn>}
+            {ok ? <HoldButton label={`${T.startNight} 🚀`} onDone={api.start} color={snap.settings.format === 'boat' ? 'cyan' : T.modes[snap.settings.mode].color} className="w-full" /> : <Btn color="dark" size="lg" className="w-full" disabled>{snap.settings.format === 'boat' ? 'محتاجين ٢ أو ٤ لاعيبة متصلين' : `${T.needPlayers} ٢`}</Btn>}
           </div>
         </>
       ) : (

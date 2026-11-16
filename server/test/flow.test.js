@@ -104,40 +104,38 @@ test('full party flow with display host, 3 phones, reconnect and points', async 
   await until(() => tv.snap.phase === 'lobby');
 });
 
-test('boat: deal, parts 1-3 turn order and automatic points', async (t) => {
+test('Egyptian Basra: two sockets play a full hand, see private cards and continue', async (t) => {
   const port = PORT + 1;
   const srv = spawn(process.execPath, ['server/index.js'], { env: { ...process.env, PORT: String(port) }, stdio: 'pipe' });
   t.after(() => srv.kill());
   await sleep(600);
   const mk = () => { const ws = new WebSocket(`ws://localhost:${port}/ws`); const c = { ws, snap: null, seq: 0, acks: new Map() };
     ws.on('message', (d) => { const s = d.toString(); if (s === 'pong') return; const m = JSON.parse(s); if (typeof m.ack === 'number') return c.acks.get(m.ack)?.(m.a[0]); if (m.t === 'room:state') c.snap = m.a[0]; });
-    c.open = new Promise((r) => ws.on('open', r)); c.req = (tt, ...a) => new Promise((r) => { const id = ++c.seq; c.acks.set(id, r); ws.send(JSON.stringify({ t: tt, a, id })); }); c.emit = (tt, ...a) => ws.send(JSON.stringify({ t: tt, a })); return c; };
+    c.open = new Promise((r) => ws.on('open', r)); c.req = (tt, ...a) => new Promise((r) => { const id = ++c.seq; c.acks.set(id, r); ws.send(JSON.stringify({ t: tt, a, id })); }); c.emit = (tt, ...a) => ws.send(JSON.stringify({ t: tt, a })); t.after(()=>ws.close()); return c; };
   const host = mk(); await host.open;
   const r = await host.req('room:create', { name: 'المضيف', format: 'boat' });
   const guest = mk(); await guest.open;
   const g = await guest.req('room:join', { code: r.code, name: 'ضيف' });
-  host.emit('room:start');
-  await until(() => host.snap?.phase === 'boat');
+  host.emit('room:start'); await until(() => host.snap?.phase === 'boat');
   host.emit('boat:act', { type: 'ready' }); guest.emit('boat:act', { type: 'ready' });
-  await until(() => host.snap.boat.stage === 'play');
+  await until(() => host.snap.boat.stage === 'play' && guest.snap?.boat.stage === 'play');
+  assert.equal(host.snap.boat.kind,'basra');
+  assert.equal(host.snap.boat.myHand.length,4); assert.equal(host.snap.boat.hands,undefined);
+  assert.ok(!host.snap.boat.myHand.some(c=>guest.snap.boat.myHand.includes(c)));
   const byId = { [r.playerId]: host, [g.playerId]: guest };
-  for (let guard = 0; guard < 20 && host.snap.boat.part < 4; guard++) {
-    const b = host.snap.boat;
-    if (b.stage === 'rules') { host.emit('boat:act', { type: 'ready' }); guest.emit('boat:act', { type: 'ready' }); await until(() => host.snap.boat.stage === 'play'); continue; }
-    const cur = byId[b.turn];
-    const opt = { 1: 'red', 2: 'higher', 3: 'between' }[b.part];
-    // wrong player can't act
-    byId[b.turn === r.playerId ? g.playerId : r.playerId].emit('boat:act', { type: 'pick', pick: opt });
-    await sleep(100); assert.equal(host.snap.boat.pending, null);
-    cur.emit('boat:act', { type: 'pick', pick: opt });
-    await until(() => host.snap.boat.pending);
-    const p = host.snap.boat.pending;
-    await until(() => !host.snap.boat.pending);
+  for (let i=0;i<48;i++) {
+    const b=host.snap.boat, cur=byId[b.turn], wrong=cur===host?guest:host;
+    await until(()=>cur.snap.boat.move===b.move);
+    const act={type:'play',card:cur.snap.boat.myHand[0],move:b.move};
+    wrong.emit('boat:act',act); await sleep(30); assert.equal(host.snap.boat.move,b.move);
+    cur.emit('boat:act',act);
+    await until(()=>host.snap.boat.move>b.move);
+    cur.emit('boat:act',act); // replay is ignored
   }
-  const s = host.snap.boat;
-  assert.equal(s.part, 4);
-  assert.equal(s.hands[r.playerId].length, 3);
-  const guesses = s.log.filter((x) => x.t === 'guess');
-  const total = guesses.reduce((sum, x) => sum + (x.right ? x.part : -1), 0);
-  assert.equal(Object.values(s.points).reduce((a, x) => a + x, 0), total);
+  await until(()=>host.snap.boat.stage==='handOver');
+  assert.equal(host.snap.boat.result.counts.reduce((a,n)=>a+n,0),52);
+  guest.emit('boat:act',{type:'next'});await sleep(80);assert.equal(host.snap.boat.stage,'handOver');
+  host.emit('boat:act',{type:'next'});await until(()=>host.snap.boat.hand===2);
+  assert.equal(host.snap.boat.stage,'rules');
+  host.emit('room:end');await until(()=>host.snap.phase==='ended');
 });
