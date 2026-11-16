@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
+import './posthog.js';
 import App from './App.jsx';
 
 // Keyboard parity for touch-first controls: many game pads react to pointerdown (for speed),
