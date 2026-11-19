@@ -127,12 +127,20 @@ test('server analytics: each lifecycle event once, refresh-safe, no personal dat
   assert.equal(count('room_joined'), 3, 'refreshes are not joins');
   assert.equal(count('game_started'), 2);
   assert.deepEqual(named('game_started', room).map((e) => e.properties.play_again), [false, true]);
+  // Player-level funnel: each connected seat receives a start, not just the host.
+  const playerStarts = named('player_game_started', room);
+  assert.equal(playerStarts.filter((e) => !e.properties.play_again).length, 3);
+  assert.deepEqual(new Set(playerStarts.filter((e) => !e.properties.play_again).map((e) => e.distinct_id)), new Set([aid(0), aid(1), aid(2)]));
+  assert.equal(playerStarts.filter((e) => e.properties.play_again).length, 2);
   assert.equal(count('game_selected'), 2);
   assert.ok(named('game_selected', room).every((e) => e.properties.game_id === 'would-you-rather'));
   const rounds = named('round_completed', room);
   assert.equal(rounds.length, 2);
   assert.deepEqual(rounds.map((e) => e.properties.skipped), [false, true]);
   assert.ok(rounds.every((e) => e.properties.round_duration_ms >= 0 && e.properties.player_count === 3));
+  // A skipped round must not count as completed for a player.
+  assert.equal(named('player_round_completed', room).length, 3);
+  assert.deepEqual(new Set(named('player_round_completed', room).map((e) => e.distinct_id)), new Set([aid(0), aid(1), aid(2)]));
   assert.deepEqual(named('party_ended', room).map((e) => e.properties.end_reason), ['host_ended', 'room_closed']);
   assert.equal(named('party_ended', room)[0].properties.rounds_completed, 2);
   const exits = Object.fromEntries(named('game_exited', room).map((e) => [e.distinct_id, e.properties]));
@@ -170,6 +178,10 @@ test('server analytics: each lifecycle event once, refresh-safe, no personal dat
   assert.equal(named('game_selected', broom)[0].properties.game_id, 'basra');
   assert.equal(named('round_completed', broom).length, 1);
   assert.equal(named('round_completed', broom)[0].properties.game_id, 'basra');
+  assert.equal(named('player_game_started', broom).length, 2);
+  assert.equal(named('player_round_completed', broom).length, 2);
+  // Ending Basra after one hand is not a completed match.
+  assert.equal(named('basra_match_completed', broom).length, 0);
   assert.equal(named('party_ended', broom)[0].properties.end_reason, 'host_ended');
 
   // ---------------- privacy: nothing personal or identifying in any payload
