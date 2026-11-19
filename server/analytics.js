@@ -136,6 +136,10 @@ export const roomJoined = safe((room, player, ids = {}) => {
     joined_mid_game: !!player.late,
     player_count: room.players.length,
   });
+  // A late joiner must also enter the per-player funnel, even if the night has started.
+  if (info(room).nightStartedAt && player.connected) {
+    playerEvent(room, player.id, 'player_game_started', { late_join: true });
+  }
 });
 
 function exit(room, playerId, reason, now = Date.now()) {
@@ -186,6 +190,14 @@ export const observe = safe((room, cause = 'tick', now = Date.now()) => {
       missions: !!room.settings.missions,
       games_enabled: room.settings.enabledGames.length || 'all',
     });
+    // Room lifecycle events belong to the host. These separate events belong to
+    // each connected player so the visitor-to-player funnel isn't host-only.
+    for (const p of room.players) {
+      if (p.connected) playerEvent(room, p.id, 'player_game_started', {
+        late_join: false,
+        play_again: cause === 'room:playAgain',
+      });
+    }
     if (is === 'boat') {
       roomEvent(room, 'game_selected', { game_id: 'basra', game_name: 'Basra', game_kind: 'cards', round: 1 });
     }
@@ -218,6 +230,11 @@ export const observe = safe((room, cause = 'tick', now = Date.now()) => {
       winners_count: res.winners?.length ?? 0,
       deductions_count: Object.keys(res.deductions ?? {}).length,
     });
+    if (cause !== 'room:skipRound') {
+      for (const id of res.roster ?? []) {
+        playerEvent(room, id, 'player_round_completed', { game_id: res.gameId, round: res.round });
+      }
+    }
   }
   r.result = room.lastResult;
 
@@ -241,6 +258,14 @@ export const observe = safe((room, cause = 'tick', now = Date.now()) => {
         player_count: b.order.length,
         match_over: b.stage === 'over',
       });
+      for (const id of b.order) {
+        playerEvent(room, id, 'player_round_completed', { game_id: 'basra', round: b.hand });
+      }
+    }
+    // Basra is selected once per match but finishes multiple hands: track match
+    // completion separately, including a handOver -> over transition.
+    if (b.stage === 'over' && r.handStage !== 'over') {
+      roomEvent(room, 'basra_match_completed', { game_id: 'basra', hands_completed: r.roundsThisNight });
     }
     r.handStage = b.stage;
   } else {
