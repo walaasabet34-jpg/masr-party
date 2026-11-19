@@ -6,6 +6,7 @@ import { HomeDesktop, HomePhone, PickGamePhone } from './screens/Home.jsx';
 import { SetupDesktop, VibePhone, BoatSetupPhone, JoinCode, Profile } from './screens/Setup.jsx';
 import { RoomView } from './screens/Room.jsx';
 import { sfx } from './sound.js';
+import { trackScreen } from './posthog.js';
 
 const inviteCode = () => new URLSearchParams(location.search).get('join')?.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4) || null;
 
@@ -18,6 +19,19 @@ export default function App() {
   useEffect(() => {
     api.boot();
   }, []);
+  // anonymous journey: screen names only, never codes or names
+  const screen = snap
+    ? snap.phase === 'playing'
+      ? 'play/' + (snap.currentGameId ?? 'game')
+      : snap.phase === 'boat'
+        ? 'play/basra'
+        : snap.phase
+    : resuming && session
+      ? 'reconnecting'
+      : closed
+        ? 'closed'
+        : route.name;
+  useEffect(() => trackScreen(screen), [screen]);
   // A QR link is consumed once we are inside a room.
   useEffect(() => {
     if (snap && location.search) history.replaceState(null, '', '/');

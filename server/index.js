@@ -8,6 +8,7 @@ import { networkInterfaces } from 'node:os';
 import { WebSocketServer } from 'ws';
 import { Room, META } from './room.js';
 import { posthogLogger, shutdownPosthogLogs } from './posthog-logs.js';
+import * as analytics from './analytics.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', 'client', 'dist');
 const PORT = Number(process.env.PORT) || 8787;
@@ -74,6 +75,7 @@ function push(room) {
 }
 
 function closeRoom(room, reason) {
+  analytics.roomClosed(room, reason);
   for (const c of conns) {
     if (c.room !== room) continue;
     send(c, { t: 'room:closed', a: [reason] });
@@ -113,6 +115,7 @@ const handlers = {
     rooms.set(code, room);
     const { player } = room.addPlayer(info, { asHost: true });
     bind(c, room, 'player', player.id);
+    analytics.roomCreated(room, player.id, info);
     posthogLogger.emit({ severityText: 'INFO', body: 'party room created', attributes: { party_format: room.settings.format, host_surface: 'phone' } });
     return { ok: true, code, playerId: player.id, token: player.token };
   },
@@ -122,6 +125,7 @@ const handlers = {
     room.displayToken = randomBytes(16).toString('hex');
     rooms.set(code, room);
     bind(c, room, 'display');
+    analytics.roomCreated(room, null, info);
     posthogLogger.emit({ severityText: 'INFO', body: 'party room created', attributes: { party_format: room.settings.format, host_surface: 'display' } });
     return { ok: true, code, displayToken: room.displayToken };
   },
@@ -136,9 +140,13 @@ const handlers = {
     const room = rooms.get(String(info.code ?? '').toUpperCase());
     if (!room) return { ok: false, error: 'room_not_found' };
     if (room.closed) return { ok: false, error: 'room_not_found' };
+    const seats = room.players.length;
     const r = room.addPlayer(info);
     if (r.error) return { ok: false, error: r.error };
     bind(c, room, 'player', r.player.id);
+    // a reconnect/refresh re-takes the same seat: only a brand-new seat is a join
+    if (room.players.length > seats) analytics.roomJoined(room, r.player, info);
+    else analytics.remember(room, r.player.id, info);
     posthogLogger.emit({ severityText: 'INFO', body: 'party player joined', attributes: { party_format: room.settings.format, player_count: room.players.length } });
     return { ok: true, code: room.code, playerId: r.player.id, token: r.player.token };
   },
@@ -177,6 +185,7 @@ const handlers = {
     const room = c.room;
     const p = room?.kick(who(c), id);
     if (!p) return;
+    analytics.playerExited(room, p, 'kicked');
     for (const x of conns) if (x.room === room && x.playerId === id) {
       send(x, { t: 'room:closed', a: ['kicked'] });
       x.room = null;
@@ -218,8 +227,10 @@ const handlers = {
       closeRoom(room, 'host_left');
       return;
     }
+    const leaving = room.player(c.playerId);
     room.leave(c.playerId);
     c.room = null;
+    if (leaving) analytics.playerExited(room, leaving, 'left');
     if (room.closed) closeRoom(room, room.closed);
     else push(room);
   },
@@ -260,6 +271,7 @@ wss.on('connection', (ws) => {
       c.needsHistory = false;
       send(c, { t: 'chat:history', a: [c.room.chat.since(0)] });
     }
+    for (const r of new Set([before, c.room])) if (r && rooms.has(r.code)) analytics.observe(r, msg.t);
     for (const r of new Set([before, c.room])) if (r && rooms.has(r.code) && r.version !== r.sentVersion) push(r);
   });
   ws.on('close', () => {
@@ -280,6 +292,7 @@ setInterval(() => {
       continue;
     }
     if (now - room.lastActive > ROOM_IDLE_MS && ![...conns].some((c) => c.room === room)) {
+      analytics.roomClosed(room, 'idle');
       rooms.delete(room.code);
       continue;
     }
@@ -288,6 +301,7 @@ setInterval(() => {
     } catch (e) {
       console.error('tick error', room.code, e);
     }
+    analytics.observe(room, 'tick', now);
     if (room.version !== room.sentVersion) push(room);
   }
 }, 100);
@@ -304,7 +318,7 @@ server.listen(PORT, () => {
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.once(signal, async () => {
-    await shutdownPosthogLogs();
+    await Promise.all([shutdownPosthogLogs(), analytics.shutdownAnalytics()]);
     process.exit(0);
   });
 }
