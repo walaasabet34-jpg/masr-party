@@ -7,7 +7,7 @@ configured, every call is a silent no-op, so local dev and tests run as before.
 
 | Where | What | Why |
 |---|---|---|
-| `server/analytics.js` (posthog-node) | `room_created`, `room_joined`, `game_started`, `game_selected`, `round_completed`, `party_ended`, `game_exited` | The server owns room state, so each event fires once on the real state transition. A refresh or reconnect re-takes the same seat and cannot duplicate anything. |
+| `server/analytics.js` (posthog-node) | `room_created`, `room_joined`, `game_started`, `player_game_started`, `game_selected`, `round_completed`, `player_round_completed`, `basra_match_completed`, `party_ended`, `game_exited` | The server owns room state, so each event fires once on the real state transition. A refresh or reconnect re-takes the same seat and cannot duplicate anything. |
 | `client/src/posthog.js` (posthog-js) | `game_opened`, `$pageview` (journey), `chat_message_sent`, `mission_claimed` (counts only), exceptions, session replay | Things only the browser knows |
 | `server/index.js` | ~12 one-line hooks in connection handlers and the tick loop | No change to `room.js` or any game |
 
@@ -21,9 +21,12 @@ The browser sends its anonymous PostHog `distinct_id` and `session_id` with crea
 | `game_opened` | first load of a browser tab session (sessionStorage; a reload does not count) | `entry` (`direct`/`invite_link`), `has_saved_session` |
 | `room_created` | host creates a room | `room_id`, `format` (`party`/`basra`), `mode`, `host_surface` (`phone`/`screen`) |
 | `room_joined` | a **new seat** is taken (not reconnects) | `room_phase`, `joined_mid_game`, `player_count` |
-| `game_started` | a night starts (lobby → play, or "play again") | `play_again`, `total_rounds`, `missions`, `games_enabled`, `player_count` |
+| `game_started` | a night starts (lobby → play, or "play again"); **room/host-level** | `play_again`, `total_rounds`, `missions`, `games_enabled`, `player_count` |
+| `player_game_started` | each connected player when the night starts; also an arriving player if joining an active night | `late_join`, `play_again` (when a night starts) |
 | `game_selected` | a mini-game round actually begins (Basra: once per match) | `game_id`, `game_kind`, `round`, `player_count` |
-| `round_completed` | a round resolves (Basra: each hand) | `game_id`, `round`, `skipped`, `round_duration_ms`, `player_count`, `winners_count`, `deductions_count` |
+| `round_completed` | a round resolves (Basra: each hand); **room/host-level** | `game_id`, `round`, `skipped`, `round_duration_ms`, `player_count`, `winners_count`, `deductions_count` |
+| `player_round_completed` | a player participated in a completed (not skipped) round/hand | `game_id`, `round` |
+| `basra_match_completed` | a Basra match reaches its actual `over` stage (not merely one finished hand) | `game_id`, `hands_completed` |
 | `party_ended` | the night ends | `end_reason` (`completed`/`host_ended`/`room_closed`), `rounds_completed`, `night_duration_ms` |
 | `game_exited` | a player leaves the room, once per seat | `exit_reason` (`left`/`kicked`/`disconnected` after 2 min away/`room_closed`/`idle`), `session_duration_ms`, `rounds_played` |
 | `$pageview` | screen change | `$pathname` = `/app/home`, `/app/lobby`, `/app/briefing`, `/app/play/<game_id>`, `/app/ended`… |
@@ -77,9 +80,9 @@ Every server event carries `room_id`, `format`, `mode`, `host_surface` and `play
 | # | Insight | Type & definition |
 |---|---|---|
 | 1 | **Active players** (DAU / WAU / MAU) | Trends, unique users of `room_joined` + `room_created`, daily, plus weekly/monthly series. Add a stickiness insight (DAU/MAU) on the same events. |
-| 2 | **Visitors → players funnel** | Funnel `game_opened` → `room_created` or `room_joined` → `game_started` → `round_completed` (within 1 h), broken down by `entry` |
+| 2 | **Visitors → players funnel** | **Unique persons**, steps `game_opened` → (`room_created` OR `room_joined`) → `player_game_started` → `player_round_completed` (within 1 h). The room events `game_started` and `round_completed` are attributed to the host and must not be used as individual-player funnel steps. Break down by `entry` only where supported by the event properties/person settings. |
 | 3 | **Game popularity** | Trends, total `game_selected` broken down by `game_id`, shown as a bar chart, last 30 days. Also a pie chart of `format` (party vs Basra). |
-| 4 | **Completion rate per game** | Trends formula `A / B`, where A = `round_completed` with `skipped = false` and B = `game_selected`, broken down by `game_id`. Low values flag games that get skipped or abandoned. |
+| 4 | **Completion rate per game** | **Party mini-games only:** `round_completed` with `skipped = false` / `game_selected`, broken down by `game_id` and excluding `basra`. **Basra match completion:** `basra_match_completed` / `game_selected` filtered to `game_id = basra`. **Basra hand activity:** count `round_completed` filtered to `game_id = basra` separately; do not divide hand count by match starts. Use consistent windows and inspect cohort boundaries before treating ratios as actual completion rates. |
 | 5 | **Night completion** | Trends of `party_ended` broken down by `end_reason`, plus formula `completed / game_started` |
 | 6 | **Engagement: rounds per night** | Trends, average of `party_ended.rounds_completed`, weekly |
 | 7 | **Session duration** | Trends, median and p90 of `game_exited.session_duration_ms` (÷ 60000 for minutes), plus `night_duration_ms` |
@@ -88,6 +91,8 @@ Every server event carries `room_id`, `format`, `mode`, `host_surface` and `play
 | 10 | **Retention** | Retention insight: start event `room_joined` or `room_created`, return event the same, weekly, 8 weeks. Add a second one on `game_opened` for visitors. |
 | 11 | **Player journeys** | Paths insight on `$pageview` (`$pathname`), starting at `/app/home`, to see where people drop off before joining |
 | 12 | **Replay playlist** | Saved filter: recordings with `game_exited.exit_reason = disconnected`, or with `round_completed.skipped = true`, to see UX friction |
+
+**Metric limitations:** `game_opened` is one event per browser tab session, not a verified unique human; PostHog distinct IDs are anonymous browser IDs. A phone and big-screen session are separate browser identities. `game_started` / `party_ended` are room/host events; `player_game_started` / `player_round_completed` are individual player events. Replays of room-level events may link to the host rather than every guest. A Basra hand ending is not the same as a completed Basra match. Avoid combining those units when charting.
 
 Suggested cohorts: *Hosts* (did `room_created`), *Returning players* (`room_joined` in 2+ different
 weeks) and *Basra players* (`game_selected` where `game_id = basra`).
