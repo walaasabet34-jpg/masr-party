@@ -8,7 +8,10 @@ import { createBoat, boatTick, boatAct, boatView, boatAwards, BOAT_MAX } from '.
 
 export const PARTY_MAX = 20;
 const INTRO_MS = 3500;
-const ROUND_OPTIONS = [10, 15, 20, 30, 0];
+const ROUND_OPTIONS = [5, 10, 15, 20, 30, 0];
+// «سهرة سريعة» (5 rounds) opens with one of these: quick to explain, fun on the first try
+export const QUICK_ROUNDS = 5;
+export const QUICK_OPENERS = ['emoji-riddle', 'hot-potato', 'true-or-false', 'most-likely-to', 'would-you-rather'];
 export const COLORS = ['magenta', 'lime', 'cyan', 'orange', 'violet', 'yellow', 'mint', 'pink', 'blue', 'red'];
 
 const token = () => randomBytes(16).toString('hex');
@@ -226,6 +229,11 @@ export class Room {
     let cand = pool.filter((g) => !this.recent.slice(-3).includes(g.id));
     if (this.round === 0) cand = cand.filter((g) => g.id !== 'roulette');
     if (!cand.length) cand = pool;
+    // quick night: the first round comes from the easy openers the host allowed and the room can play
+    if (this.round === 0 && this.settings.totalRounds === QUICK_ROUNDS && !this.fallbackNote) {
+      const easy = cand.filter((g) => QUICK_OPENERS.includes(g.id));
+      if (easy.length) cand = easy;
+    }
     const total = cand.reduce((a, g) => a + (g.weight ?? 1), 0);
     let x = rng() * total;
     let pick = cand[cand.length - 1];
