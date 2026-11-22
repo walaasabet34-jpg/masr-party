@@ -1,6 +1,6 @@
 // Socket + tiny store. One socket per tab; it reconnects with backoff and resumes the seat.
 import { useSyncExternalStore } from 'react';
-import posthog from './posthog.js';
+import { analyticsIds, trackOpened, capture } from './posthog.js';
 
 const LS = {
   get(k, d = null) {
@@ -199,24 +199,7 @@ handlers['room:closed'] = (reason) => {
   set({ snap: null, closed: reason, resuming: false });
 };
 
-function playerDistinctId(session) {
-  if (session?.role !== 'player' || !session.code || !session.playerId) return null;
-  return `room:${session.code}:player:${session.playerId}`;
-}
-
-function identifyPlayerSession(session) {
-  const distinctId = playerDistinctId(session);
-  if (!distinctId) return;
-  const name = state.identity.name?.trim();
-  posthog.identify(distinctId, name ? { name } : undefined);
-}
-
 function saveSession(s) {
-  const previousDistinctId = playerDistinctId(state.session);
-  const nextDistinctId = playerDistinctId(s);
-  if (previousDistinctId && previousDistinctId !== nextDistinctId) posthog.reset();
-  if (nextDistinctId && previousDistinctId !== nextDistinctId) identifyPlayerSession(s);
-
   LS.set('session', s);
   const sameRoom = s && state.session && s.code === state.session.code;
   set({ session: s, ...(sameRoom ? {} : { chat: [], chatPending: [], chatUnread: 0, chatToast: null }) });
@@ -240,7 +223,7 @@ async function resume() {
   const s = state.session;
   if (!s) return set({ resuming: false });
   try {
-    const r = s.role === 'display' ? await request('room:attachDisplay', { code: s.code, displayToken: s.displayToken }) : await request('room:join', { code: s.code, playerId: s.playerId, token: s.token });
+    const r = s.role === 'display' ? await request('room:attachDisplay', { code: s.code, displayToken: s.displayToken, ...analyticsIds() }) : await request('room:join', { code: s.code, playerId: s.playerId, token: s.token, ...analyticsIds() });
     if (r?.ok) flushChat();
     if (!r?.ok) {
       saveSession(null);
@@ -259,11 +242,8 @@ const look = () => {
 
 export const api = {
   boot() {
-    posthog.logger.info('party client started', { has_saved_session: Boolean(state.session) });
-    if (state.session) {
-      identifyPlayerSession(state.session);
-      connect();
-    }
+    trackOpened({ entry: /[?&]join=/.test(location.search) ? 'invite_link' : 'direct', has_saved_session: Boolean(state.session) });
+    if (state.session) connect();
   },
   setIdentity(patch) {
     const identity = { ...state.identity, ...patch };
@@ -283,49 +263,35 @@ export const api = {
     return request('room:peek', { code });
   },
   async hostOnPhone(opts) {
-    const r = await request('room:create', { ...look(), ...opts });
+    const r = await request('room:create', { ...look(), ...opts, ...analyticsIds() });
     if (!r.ok) throw new Error(r.error);
     saveSession({ code: r.code, role: 'player', playerId: r.playerId, token: r.token });
-    posthog.capture('party_created', { party_format: opts.format, host_surface: 'phone', party_mode: opts.mode });
     return r.code;
   },
   async hostOnScreen(opts) {
-    const r = await request('room:createDisplay', opts);
+    const r = await request('room:createDisplay', { ...opts, ...analyticsIds() });
     if (!r.ok) throw new Error(r.error);
     saveSession({ code: r.code, role: 'display', displayToken: r.displayToken });
-    posthog.capture('party_created', { party_format: opts.format, host_surface: 'display', party_mode: opts.mode });
     return r.code;
   },
   async join(code) {
     code = code.toUpperCase();
     const prev = state.session?.code === code ? state.session : null;
-    const r = await request('room:join', { ...look(), code, playerId: prev?.playerId, token: prev?.token });
+    const r = await request('room:join', { ...look(), code, playerId: prev?.playerId, token: prev?.token, ...analyticsIds() });
     if (!r.ok) {
       set({ error: r.error });
       throw new Error(r.error);
     }
     saveSession({ code: r.code, role: 'player', playerId: r.playerId, token: r.token });
-    posthog.capture('party_joined');
     return r.code;
   },
   settings: (p) => emit('room:settings', p),
-  start: () => {
-    posthog.capture('party_started', { party_format: state.snap?.settings.format, party_mode: state.snap?.settings.mode });
-    emit('room:start');
-  },
-  ready: () => {
-    posthog.capture('player_ready', { party_format: state.snap?.settings.format });
-    emit('player:ready');
-  },
+  start: () => emit('room:start'),
+  ready: () => emit('player:ready'),
   step: (s) => emit('player:step', s),
-  input: (inp) => {
-    if (state.snap?.currentGameId !== 'tap-frenzy') {
-      posthog.capture('game_action_submitted', { game_id: state.snap?.currentGameId, input_type: inp.type });
-    }
-    emit('game:input', { ...inp, t: now() });
-  },
+  input: (inp) => emit('game:input', { ...inp, t: now() }),
   claimMission: () => {
-    posthog.capture('mission_claimed', { game_id: state.snap?.currentGameId });
+    capture('mission_claimed', { game_id: state.snap?.currentGameId });
     emit('mission:claim');
   },
   answerClaim: (id, yes) => emit('mission:answer', id, yes),
@@ -333,18 +299,11 @@ export const api = {
   kick: (id) => emit('room:kick', id),
   forceStart: () => emit('room:forceStart'),
   skipRound: () => emit('room:skipRound'),
-  end: () => {
-    posthog.capture('party_ended', { party_format: state.snap?.settings.format });
-    emit('room:end');
-  },
+  end: () => emit('room:end'),
   toLobby: () => emit('room:lobby'),
   playAgain: () => emit('room:playAgain'),
-  boat: (act) => {
-    posthog.capture('game_action_submitted', { game_id: 'boat', input_type: act.type });
-    emit('boat:act', act);
-  },
+  boat: (act) => emit('boat:act', act),
   leave() {
-    posthog.capture('party_left', { room_role: state.session?.role });
     emit('room:leave');
     saveSession(null);
     set({ snap: null, error: null, closed: null });
@@ -353,7 +312,7 @@ export const api = {
   chatSend(text) {
     const cid = (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)).slice(0, 40);
     const p = { cid, text };
-    posthog.capture('chat_message_sent');
+    capture('chat_message_sent');
     set({ chatPending: [...state.chatPending, p] });
     sendChat(p);
   },
