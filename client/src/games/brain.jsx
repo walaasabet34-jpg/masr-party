@@ -87,7 +87,7 @@ function RaceBig({ snap, v, title, color }) {
 const Options = ({ options, onPick, cols = 2, renderOpt }) => (
   <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
     {options.map((o, i) => (
-      <button key={i} type="button" onPointerDown={() => onPick(i)} className="press brutal min-h-20 rounded-2xl bg-white p-3 font-display font-black text-2xl text-black">
+      <button key={i} type="button" onClick={() => onPick(i)} className="press brutal min-h-20 rounded-2xl bg-white p-3 font-display font-black text-2xl text-black">
         {renderOpt ? renderOpt(o, i) : o}
       </button>
     ))}
@@ -135,14 +135,14 @@ const oddOneOut = {
       snap={snap}
       v={v}
       render={(q, pick) => {
-        const [base, odd, n] = q.prompt;
+        const n = q.prompt;
         return (
           <div className="flex flex-col gap-3">
             <div className="text-center text-ink-muted">لاقي الغريب</div>
             <div className="ltr grid gap-1 rounded-2xl border-4 border-black bg-white p-2" style={{ gridTemplateColumns: `repeat(${n}, minmax(0,1fr))` }}>
-              {Array.from({ length: n * n }).map((_, i) => (
-                <button key={i} type="button" onPointerDown={() => pick(i)} className="flex aspect-square items-center justify-center rounded-lg active:bg-black/10" style={{ fontSize: `${Math.floor(220 / n)}px`, lineHeight: 1 }}>
-                  {i === q.prompt[3] ? odd : base}
+              {q.options.map((symbol, i) => (
+                <button key={i} type="button" onClick={() => pick(i)} className="flex aspect-square min-w-0 items-center justify-center rounded-lg font-mono text-black active:bg-black/10" style={{ fontSize: `clamp(18px, ${29 / n}vw, ${Math.floor(220 / n)}px)`, lineHeight: 1 }}>
+                  {symbol}
                 </button>
               ))}
             </div>
@@ -180,8 +180,11 @@ const emojiRiddle = {
       v={v}
       render={(q, pick) => (
         <div className="flex flex-col gap-5">
-          <div className="rounded-[30px] border-4 border-black bg-white py-8 text-center text-7xl">{q.prompt}</div>
-          <Options options={q.options} onPick={pick} cols={1} />
+          <div className="rounded-[30px] border-4 border-black bg-white px-3 py-5 text-center text-black">
+            <div className="font-display font-black">{q.prompt.category}</div>
+            <div dir="ltr" className="mt-2 text-4xl sm:text-6xl">{q.prompt.emoji}</div>
+          </div>
+          <Options options={q.options} onPick={pick} cols={2} />
         </div>
       )}
     />
