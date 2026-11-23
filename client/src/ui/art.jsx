@@ -1,6 +1,7 @@
-// Hand-drawn replacements for the reference game's card artwork.
+// Artwork for the game picker and the Basra table.
 import { HEX } from './kit.jsx';
-import { cardName } from '../../../shared/cards.js';
+import { rankOf, cardName } from '../../../shared/cards.js';
+import basraDeck from '../assets/basra-deck.webp';
 
 const ICONS = ['📏', '✅', '🧩', '👉', '⚖️', '🕵️', '🎤', '🖍️', '🤥', '🎨', '🐄', '🌶️', '💣', '🎩', '🪑', '🐺', '⚡', '👆', '✋', '⏱️', '🤠', '🔨', '🃏', '🧠', '🧮', '🔍', '🔢', '✊', '💀'];
 
@@ -33,46 +34,57 @@ export function PartyArt({ height = 250 }) {
 }
 
 export function BoatArt({ height = 250 }) {
-  return <div className="relative flex items-center justify-center overflow-hidden bg-emerald-800" style={{height}}>
-    <div className="absolute inset-4 rounded-[40px] border-4 border-emerald-600" />
-    <div className="flex items-center gap-3" style={{transform:'rotate(-8deg)'}}>
-      {['7♦','J♠','A♥','K♣'].map((c,i)=><div key={c} style={{transform:`rotate(${i*8-12}deg) translateY(${i%2*12}px)`}}><Card txt={c} w={64}/></div>)}
+  return (
+    <div
+      className="relative flex items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_center,#22654f,#0c2c22_75%)]"
+      style={{ height }}
+    >
+      <div aria-hidden="true" className="absolute inset-4 rounded-[34px] border border-white/15" />
+      <div className="relative -mt-3 flex items-center justify-center [direction:ltr]">
+        {['7♦', 'J♠', 'Q♥', 'K♣'].map((card, i) => (
+          <div
+            key={card}
+            style={{ marginInlineStart: i ? -16 : 0, transform: `rotate(${(i - 1.5) * 11}deg) translateY(${Math.abs(i - 1.5) * 8}px)` }}
+          >
+            <Card txt={card} w="clamp(62px, 12vw, 88px)" />
+          </div>
+        ))}
+      </div>
     </div>
-    <span className="absolute bottom-4 rounded-full bg-yellow px-4 py-1 font-display font-black text-black">كوتشينة مصري 🃏</span>
-  </div>;
+  );
 }
 
-// A playing card face.
-export function Card({ txt, w = 56, faceDown, glow, onClick, dim }) {
-  const h = Math.round(w * 1.4);
-  if (faceDown || !txt)
-    return (
-      <div className="stripes relative shrink-0 rounded-xl border-[3px] border-black shadow-hard-sm" style={{ width: w, height: h, background: HEX.violet }}>
-        <span className="absolute inset-0 flex items-center justify-center text-white/80" style={{ fontSize: w * 0.4 }}>
-          🃏
-        </span>
-      </div>
-    );
-  const red = /[♥♦]/.test(txt);
-  const rawRank = txt.slice(0, -1);
-  const rank = ({ A: 'آس', J: 'ولد', Q: 'بنت', K: 'شايب' }[rawRank] ?? rawRank.replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]));
-  const suit = txt.slice(-1);
+// The CC0 deck is packed left to right in rank order, 13 cards per suit, then the back.
+// https://github.com/AustinGabriel/Public-Domain-and-CC0-Playing-Cards
+const SUIT_ORDER = '♠♥♦♣';
+const DECK_COLUMNS = 9;
+const DECK_ROWS = 6;
+
+export function Card({ txt, w = 56, faceDown, glow, onClick }) {
+  const hidden = faceDown || !txt;
+  const index = hidden ? 52 : SUIT_ORDER.indexOf(txt.slice(-1)) * 13 + rankOf(txt) - 1;
+  const column = index % DECK_COLUMNS;
+  const row = Math.floor(index / DECK_COLUMNS);
+  const position = {
+    width: w,
+    backgroundImage: `url(${basraDeck})`,
+    backgroundSize: `${DECK_COLUMNS * 100}% ${DECK_ROWS * 100}%`,
+    backgroundPosition: `${column * 100 / (DECK_COLUMNS - 1)}% ${row * 100 / (DECK_ROWS - 1)}%`,
+  };
+  const className = `relative block aspect-[5/7] shrink-0 rounded-[9%] bg-white bg-no-repeat shadow-[0_3px_10px_#0008] ${glow ? '-translate-y-1 ring-[3px] ring-lime' : ''}`;
+
+  if (hidden) return <span aria-hidden="true" className={className} style={position} />;
+
   return (
     <button
       type="button"
       aria-label={cardName(txt)}
+      aria-pressed={onClick ? Boolean(glow) : undefined}
       title={cardName(txt)}
       onClick={onClick}
       disabled={!onClick}
-      className={`ltr relative shrink-0 rounded-xl border-[3px] border-black bg-white font-display font-black shadow-hard-sm ${dim ? 'opacity-40' : ''}`}
-      style={{ width: w, height: h, color: red ? HEX.red : '#000', boxShadow: glow ? `0 0 0 4px ${HEX.lime}, var(--shadow-hard-sm)` : undefined }}
-    >
-      <span className="absolute left-1 top-0.5 leading-none" style={{ fontSize: w * (rawRank === 'K' ? 0.2 : 0.25) }}>
-        {rank}
-      </span>
-      <span className="absolute inset-0 flex items-center justify-center" style={{ fontSize: w * 0.5 }}>
-        {suit}
-      </span>
-    </button>
+      className={`${className} transition-transform duration-150 enabled:cursor-pointer enabled:hover:-translate-y-1 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white motion-reduce:transition-none`}
+      style={position}
+    />
   );
 }
