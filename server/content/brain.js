@@ -1,10 +1,26 @@
 // Brain-game content. Facts were chosen to be well established; each item has a stable id
 // so the room can avoid repeats inside a session.
 
-export const ODD_PAIRS = [
-  ['😀', '😃'], ['😐', '😑'], ['😗', '😙'], ['🙂', '😊'], ['🌑', '🌚'], ['🕐', '🕑'], ['🔈', '🔉'],
-  ['😺', '😸'], ['🐻', '🐨'], ['🍏', '🍐'], ['🟠', '🟡'], ['💛', '🧡'], ['🌖', '🌗'], ['😮', '😯'],
-  ['🧆', '🥔'], ['☕', '🍵'], ['🐫', '🐪'], ['🌴', '🌳'], ['⚽', '🏐'], ['🫓', '🥙'],
+const odd = (id, pair) => ({ id, pair });
+export const ODD_BOARDS = [
+  [
+    odd('odd-cups', ['🥤', '🧋']),
+    odd('odd-football', ['⚽', '🏐']),
+    odd('odd-trees', ['🌴', '🌵']),
+    odd('odd-music', ['🎸', '🎷']),
+  ],
+  [
+    odd('odd-camels', ['🐫', '🐪']),
+    odd('odd-clocks', ['🕒', '🕘']),
+    odd('odd-mail', ['📬', '📭']),
+    odd('odd-moon', ['🌒', '🌘']),
+  ],
+  [
+    odd('odd-arrows', ['↗', '↖']),
+    odd('odd-stairs', ['▟', '▙']),
+    odd('odd-letter', ['F', 'ꟻ']),
+    odd('odd-corners', ['┘', '└']),
+  ],
 ];
 
 const set = (id, emoji) => ({ id, emoji });
@@ -75,26 +91,28 @@ export const TRUE_FALSE = [
 ];
 
 const er = (id, cat, emoji, answer) => ({ id, cat, emoji, answer });
+const film = (id, emoji, answer, group) => ({ ...er(id, 'movie', emoji, answer), group });
 export const EMOJI_RIDDLES = [
   // أفلام
-  er('m01', 'movie', '⚔️🐎👑', 'الناصر صلاح الدين'),
-  er('m02', 'movie', '🏢🔫🍢', 'الإرهاب والكباب'),
-  er('m03', 'movie', '💡🤪', 'اللمبي'),
-  er('m04', 'movie', '🍯⚫', 'عسل إسود'),
-  er('m05', 'movie', '🐘🔵', 'الفيل الأزرق'),
-  er('m06', 'movie', '🌾🎓🇺🇸', 'صعيدي في الجامعة الأمريكية'),
-  er('m07', 'movie', '🧔🇳🇱🌷', 'همام في امستردام'),
-  er('m08', 'movie', '🏝️🔫👑', 'الجزيرة'),
-  er('m09', 'movie', '⚽👮🇪🇬', 'كابتن مصر'),
-  er('m10', 'movie', '👕🍔⚖️', 'إكس لارج'),
-  er('m11', 'movie', '🏢👴🌃', 'عمارة يعقوبيان'),
-  er('m12', 'movie', '🥩🔪🤪', 'بوحة'),
-  er('m13', 'movie', '⚽🧔🛣️', 'الحريف'),
-  er('m14', 'movie', '🤠☀️🏜️', 'شمس الزناتي'),
-  er('m15', 'movie', '💰🎓👨‍💼', 'مرجان أحمد مرجان'),
-  er('m16', 'movie', '🎬❤️👦', 'بحب السيما'),
-  er('m17', 'movie', '🤪🔁', 'غبي منه فيه'),
-  er('m18', 'movie', '👨‍👦‍👦💰🚗', 'ولاد رزق'),
+  // The group keeps the wrong answers close enough to make each clue matter.
+  film('m01', '🐎⚔️🏰✝️', 'الناصر صلاح الدين', 'action'),
+  film('m02', '🏢📄🚨🍢', 'الإرهاب والكباب', 'society'),
+  film('m03', '💡🤪', 'اللمبي', 'comedy'),
+  film('m04', '🇺🇸✈️🇪🇬📸🛂', 'عسل إسود', 'travel'),
+  film('m05', '🏥🧠📋🔵🐘', 'الفيل الأزرق', 'drama'),
+  film('m06', '🌾🧳🎓🏫', 'صعيدي في الجامعة الأمريكية', 'travel'),
+  film('m07', '✈️🇳🇱🌷🚲', 'همام في أمستردام', 'travel'),
+  film('m08', '🏝️💰🕶️', 'الجزيرة', 'action'),
+  film('m09', '⚽🚔🔒🏆', 'كابتن مصر', 'comedy'),
+  film('m10', '👕📏💬💌', 'إكس لارج', 'comedy'),
+  film('m11', '🏢🌆🚪👥', 'عمارة يعقوبيان', 'society'),
+  film('m12', '🥩🔪🤪', 'بوحة', 'comedy'),
+  film('m13', '⚽🛣️💵', 'الحريف', 'drama'),
+  film('m14', '☀️🏜️🌴🛡️', 'شمس الزناتي', 'action'),
+  film('m15', '💰👨‍💼🎓', 'مرجان أحمد مرجان', 'society'),
+  film('m16', '👦🎬🍿❤️', 'بحب السيما', 'drama'),
+  film('m17', '🤪🔁', 'غبي منه فيه', 'comedy'),
+  film('m18', '👬👬💰🚗', 'ولاد رزق', 'action'),
   // مسلسلات
   er('s01', 'series', '🌙🏘️', 'ليالي الحلمية'),
   er('s02', 'series', '🧔🌾😎', 'الكبير أوي'),

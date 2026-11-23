@@ -1,7 +1,7 @@
 // Brain mini-games.
 import { rank, pointsFrom } from '../lib/rank.js';
 import { nameOf, namesOf, pickFresh, pickFreshMany, pickOne, shuffle, fmtNum } from '../lib/util.js';
-import { ODD_PAIRS, COUNT_SETS, TRUE_FALSE, EMOJI_RIDDLES, CLOSE_CALL } from '../content/brain.js';
+import { ODD_BOARDS, COUNT_SETS, TRUE_FALSE, EMOJI_RIDDLES, CLOSE_CALL } from '../content/brain.js';
 
 const MISTAKE = 3000;
 const sec = (n) => `${(n / 1000).toFixed(1)} ث`;
@@ -154,14 +154,14 @@ export const oddOneOut = race({
   kind: 'brain',
   durationMs: 35000,
   tagline: 'واحد فيهم مش زي الباقيين.',
-  howTo: 'شبكة إيموجي كلها شبه بعض وفيها واحد بس غريب مستخبي. لاقيه ودوس عليه. ٣ شبكات، كل واحدة أكبر من اللي قبلها. كل دوسة غلط بـ٣ ثواني.',
+  howTo: '٣ شبكات بتصعّب واحدة واحدة. دور على علامة مختلفة في الشكل أو الاتجاه ودوس عليها. كل غلطة بـ٣ ثواني.',
   rule: 'أبطأ عين تاخد صفر.',
   generate(ctx) {
-    const pairs = shuffle(ctx.rng, ODD_PAIRS);
-    return [4, 5, 6].map((n, k) => {
-      const [base, odd] = pairs[k % pairs.length];
-      const at = Math.floor(ctx.rng() * n * n);
-      return { prompt: [base, odd, n, at], options: [], answer: at };
+    return [4, 5, 6].map((size, level) => {
+      const [base, odd] = shuffle(ctx.rng, pickFresh(ctx, ODD_BOARDS[level]).pair);
+      const answer = Math.floor(ctx.rng() * size * size);
+      const options = Array.from({ length: size * size }, (_, i) => (i === answer ? odd : base));
+      return { prompt: size, options, answer };
     });
   },
 });
@@ -181,6 +181,10 @@ export const trueOrFalse = race({
   },
 });
 
+const MOVIES = EMOJI_RIDDLES.filter((x) => x.cat === 'movie');
+const OTHER_RIDDLES = EMOJI_RIDDLES.filter((x) => x.cat !== 'movie');
+const RIDDLE_CATEGORIES = { movie: 'فيلم مصري', series: 'مسلسل', place: 'مكان', food: 'أكلة أو مشروب', brand: 'ماركة' };
+
 export const emojiRiddle = race({
   id: 'emoji-riddle',
   name: 'فزورة إيموجي',
@@ -188,14 +192,19 @@ export const emojiRiddle = race({
   color: 'pink',
   kind: 'brain',
   durationMs: 40000,
-  tagline: 'اقرا الإيموجي. قول الحاجة.',
-  howTo: 'كام إيموجي بيوصفوا فيلم أو مسلسل أو مكان أو أكلة أو ماركة. دوس على الإجابة الصح من أربعة. خمس فوازير، وكل غلطة بـ٣ ثواني.',
+  tagline: 'فكّ الإيموجي واعرف الفيلم أو الحاجة اللي وراه.',
+  howTo: 'خمس فوازير، منهم ٣ أفلام مصرية. الإيموجي ممكن يوصف اسم الفيلم أو حاجة من حكايته. اختار من أربع إجابات، وكل غلطة بـ٣ ثواني.',
   rule: 'أبطأ واحد في الفوازير ياخد صفر.',
   generate(ctx) {
-    return pickFreshMany(ctx, EMOJI_RIDDLES, 5).map((x) => {
+    // Keep film clues and the other categories interleaved.
+    const movies = pickFreshMany(ctx, MOVIES, 3);
+    const other = pickFreshMany(ctx, OTHER_RIDDLES, 2);
+    return [movies[0], other[0], movies[1], other[1], movies[2]].map((x) => {
       const same = EMOJI_RIDDLES.filter((y) => y.cat === x.cat && y.id !== x.id);
-      const options = shuffle(ctx.rng, [x.answer, ...shuffle(ctx.rng, same).slice(0, 3).map((y) => y.answer)]);
-      return { prompt: x.emoji, options, answer: options.indexOf(x.answer) };
+      const close = x.group ? same.filter((y) => y.group === x.group) : [];
+      const wrong = [...shuffle(ctx.rng, close), ...shuffle(ctx.rng, same.filter((y) => !close.includes(y)))].slice(0, 3);
+      const options = shuffle(ctx.rng, [x.answer, ...wrong.map((y) => y.answer)]);
+      return { prompt: { emoji: x.emoji, category: RIDDLE_CATEGORIES[x.cat] }, options, answer: options.indexOf(x.answer) };
     });
   },
 });
