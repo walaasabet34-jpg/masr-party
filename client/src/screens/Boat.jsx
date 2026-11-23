@@ -24,16 +24,16 @@ function Table({snap,big=false}) {
   const valid=card && validCapture(card,take) && (take.length || !suggestedCapture(card,b.floor).length);
   const names=(i)=>b.order.filter((_,n)=>n%2===i).map(id=>P[id]?.name??'لاعب').join(' + ');
   const over=['handOver','over'].includes(b.stage);
-  return <div className={`mx-auto flex w-full max-w-5xl flex-col gap-4 ${big?'':'px-4 pb-6'}`}>
+  return <div className={`mx-auto flex w-full max-w-5xl flex-col gap-3 ${big?'':'px-4 pb-6'}`}>
     <div className="flex flex-wrap items-center justify-between gap-2">
-      <h1 className="font-display font-black text-3xl">🃏 بصرة · الكومي</h1>
+      <h1 className="font-display text-xl font-black sm:text-2xl">بصرة · الكومي</h1>
       <span className="text-sm text-ink-muted">إيد {b.hand} · باقي الرزمة {b.deckLeft} · الهدف ١٠١</span>
     </div>
     <div className="grid grid-cols-2 gap-3">{[0,1].map(i=><div key={i} className={`rounded-2xl border-2 p-3 ${b.teams.find(x=>x.id===b.turn)?.team===i?'border-lime bg-lime/10':'border-white/15 bg-black/25'}`}>
       <div className="font-display font-black">{names(i)}</div><div className="text-xl text-lime">{b.totals[i]} نقطة</div>
       <div className="text-xs text-ink-muted">{b.captured[i]} ورقة ملمومة · {b.basras[i]} بصرة في الإيد</div>
     </div>)}</div>
-    <Rules />
+    {b.stage==='rules' && <Rules />}
     {b.stage==='rules' && <div className="rounded-3xl bg-cyan p-5 text-black">
       <h2 className="text-2xl font-black">جاهزين للكوتشينة؟</h2>
       <p>ورقك ليك لوحدك. اختار ورقة من إيدك، راجع الورق اللي هتلمّه، وبعدين العب.</p>
@@ -41,16 +41,25 @@ function Table({snap,big=false}) {
       {mine?<Btn color="lime" disabled={b.ready.includes(snap.me)} onClick={()=>api.boat({type:'ready'})}>{b.ready.includes(snap.me)?'جاهز ✓':'أنا جاهز'}</Btn>:<p>مستنيين اللاعيبة يجهزوا من أجهزتهم.</p>}
     </div>}
     {b.stage==='play' && <>
-      <div className={`rounded-2xl p-3 text-center font-display font-black text-xl ${turn?'bg-lime text-black':'bg-white/10'}`}>{turn?'دورك! اختار ورقة من إيدك':`دور ${P[b.turn]?.name??'لاعب'}`}{P[b.turn]?.connected===false && ' · الاتصال مقطوع، مستنيين يرجع'}</div>
-      <section aria-label="ورق الأرض" className="min-h-40 rounded-[30px] border-4 border-emerald-900 bg-emerald-800/70 p-4">
-        <h2 className="mb-3 text-sm font-black text-white/80">ورق الأرض {card && '· المحدد هيتلمّ'}</h2>
-        <div className="flex flex-wrap justify-center gap-3">{b.floor.length?b.floor.map(c=><Card key={c} txt={c} w={big?70:58} glow={take.includes(c)} onClick={turn&&card&&!sweep(card)?()=>toggle(c):undefined}/>):<p className="py-5 text-white/70">الأرض فاضية… خلي بالك من البصرة!</p>}</div>
+      <section aria-label="ورق الأرض" className="rounded-[28px] border-4 border-[#234a39] bg-[radial-gradient(ellipse_at_center,#285d49,#12392c_82%)] px-3 py-4 shadow-[inset_0_0_0_1px_#ffffff26,inset_0_0_32px_#0005] sm:px-6">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <h2 className="font-display font-black">ورق الأرض</h2>
+          <span aria-live="polite" className={`rounded-full px-3 py-1 font-bold ${turn?'bg-lime text-black':'bg-black/30 text-white'}`}>
+            {turn?'دورك · اختار ورقة':`دور ${P[b.turn]?.name??'لاعب'}`}
+            {P[b.turn]?.connected===false && ' · مستنيين الاتصال'}
+          </span>
+        </div>
+        <div className="flex min-h-32 flex-wrap items-center justify-center gap-2 py-4 sm:min-h-48 sm:gap-3">
+          {b.floor.length ? b.floor.map(c => (
+            <Card key={c} txt={c} w={big ? 'clamp(78px, 9vw, 112px)' : 'clamp(53px, 17vw, 92px)'} glow={take.includes(c)} onClick={turn&&card&&!sweep(card)?()=>toggle(c):undefined} />
+          )) : <p className="text-sm text-white/75">الأرض فاضية… خلي بالك من البصرة!</p>}
+        </div>
       </section>
       {b.lastPlay && <p className="rounded-xl bg-white/5 p-3 text-sm" aria-live="polite">{P[b.lastPlay.pid]?.name}: لعب {cardName(b.lastPlay.card)} · {b.lastPlay.take.length?`لمّ ${b.lastPlay.take.length} ورقة`:'نزّل ورقة على الأرض'} {b.lastPlay.basra && '· بصرة! +١٠ ✨'}</p>}
     </>}
     {mine && !over && <section aria-label="ورقك" className="rounded-3xl bg-black/25 p-4">
-      <h2 className="mb-3 font-display font-black text-xl">ورقك <span className="text-xs text-ink-muted">مخفي عن الباقيين</span></h2>
-      <div className="flex flex-wrap justify-center gap-3">{b.myHand.map(c=><Card key={c} txt={c} w={62} glow={card===c} onClick={turn?()=>choose(c):undefined}/>)}</div>
+      <h2 className="mb-3 font-display text-lg font-black">ورقك <span className="text-xs text-ink-muted">مخفي عن الباقيين</span></h2>
+      <div className="flex flex-wrap justify-center gap-2 pt-1 sm:gap-3">{b.myHand.map(c=><Card key={c} txt={c} w="clamp(53px, 18vw, 108px)" glow={card===c} onClick={turn?()=>choose(c):undefined}/>)}</div>
       {turn && card && <div className="mt-4 text-center">
         <p className="mb-3 text-sm">{take.length?`هتلمّ ${take.length} ورقة. تقدر تغيّر التحديد من الأرض.`:'الورقة هتنزل على الأرض.'}</p>
         {!valid && <p role="alert" className="mb-2 text-yellow">اختار ورق بنفس الرقم أو مجموعات مجموع كل واحدة يساوي ورقتك. لو فيه لمّة، لازم تلمّ.</p>}
@@ -66,6 +75,7 @@ function Table({snap,big=false}) {
       {!host && b.stage==='handOver' && <p className="mt-3">مستنيين المضيف يوزّع الإيد الجاية.</p>}
     </section>}
     <div className="flex flex-wrap gap-3">{b.order.map(id=><div key={id} className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2"><Avatar p={P[id]} size={24}/><span className="text-sm">{P[id]?.name}: {b.handCounts[id]} ورقة {id===b.turn && b.stage==='play'?'← الدور':''}</span></div>)}</div>
+    {b.stage!=='rules' && <Rules />}
     {!mine && snap.role!=='display' && <p className="text-center text-ink-muted">بتتفرج دلوقتي. تقدر تلعب لما المضيف يرجع للأوضة ويبدأ ماتش جديد.</p>}
   </div>;
 }
