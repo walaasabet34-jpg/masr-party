@@ -168,9 +168,16 @@ const chairs = {
         </div>
         {v.stage === 'music' && (
           <div className="flex flex-1 flex-col items-center justify-center gap-4 rounded-[34px] border-4 border-black bg-orange p-4 shadow-hard">
+            <div className="flex items-end gap-2 text-4xl" aria-hidden>
+              {['🎵', '🎶', '🎵'].map((n, i) => (
+                <motion.span key={i} animate={{ y: [0, -14, 0] }} transition={{ repeat: Infinity, duration: 0.5, delay: i * 0.15 }}>
+                  {n}
+                </motion.span>
+              ))}
+            </div>
             <motion.div animate={{ rotate: [-10, 10, -10] }} transition={{ repeat: Infinity, duration: 0.6 }} className="text-8xl">💃</motion.div>
-            <div className="font-display font-black text-4xl text-black">ارقص!</div>
-            <div className="text-black">دوس على كرسي لما المزيكا تقف بس</div>
+            <div className="font-display font-black text-4xl text-black">المزيكا شغالة… ارقص!</div>
+            <div className="text-center text-black">استنى لحد ما الشاشة تقلب أخضر ويتكتب «المزيكا وقفت!»، وبعدين دوس على كرسي</div>
             {early ? (
               <div className="font-display font-black text-2xl text-red">بدري! المزيكا كانت شغالة.</div>
             ) : (
@@ -181,7 +188,8 @@ const chairs = {
           </div>
         )}
         {v.stage === 'grab' && (
-          <>
+          <motion.div initial={{ scale: 0.9, opacity: 0.4 }} animate={{ scale: 1, opacity: 1 }} className="flex flex-1 flex-col gap-4 rounded-[34px] border-4 border-black bg-lime p-4 text-black shadow-hard">
+            <div className="text-center font-display font-black text-4xl">🔇 المزيكا وقفت!</div>
             <div className="text-center font-display font-black text-5xl">اقعد! 🪑</div>
             {early ? (
               <div className="text-center font-display font-black text-2xl text-red">بدري! المزيكا كانت شغالة.</div>
@@ -196,7 +204,7 @@ const chairs = {
                 ))}
               </div>
             )}
-          </>
+          </motion.div>
         )}
         {v.stage === 'pause' && <Waiting text="الجولة اللي جاية…" />}
       </div>
@@ -207,7 +215,7 @@ const chairs = {
     useMusic(v.stage === 'music');
     return (
       <div className="flex flex-1 flex-col items-center gap-6">
-        <Prompt big color="orange">{v.stage === 'music' ? 'ارقصوا! 💃🕺' : v.stage === 'grab' ? 'اقعدوا! 🪑' : `جولة ${v.round} من ${v.rounds}`}</Prompt>
+        <Prompt big color={v.stage === 'grab' ? 'lime' : 'orange'}>{v.stage === 'music' ? '🎵 المزيكا شغالة… ارقصوا! 💃🕺' : v.stage === 'grab' ? '🔇 المزيكا وقفت! اقعدوا! 🪑' : `جولة ${v.round} من ${v.rounds}`}</Prompt>
         {v.stage !== 'music' && (
           <div className="flex flex-wrap justify-center gap-4">
             {v.chairs.map((c, i) => (

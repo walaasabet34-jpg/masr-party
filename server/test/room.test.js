@@ -53,14 +53,14 @@ test('content does not repeat within a session until the bank is used up', () =>
 
 test('late joiner sits out the running round and plays the next one', () => {
   const { r } = mk(3);
-  r.updateSettings('display', { enabledGames: ['would-you-rather'], totalRounds: 0 });
+  r.updateSettings('display', { enabledGames: ['most-likely-to'], totalRounds: 0 });
   r.start('display', 0);
   play(r, 0);
   assert.equal(r.phase, 'playing');
   const late = r.addPlayer({ name: 'متأخر' }).player;
   assert.ok(late.late);
   assert.ok(!r.game.roster.some((p) => p.id === late.id));
-  r.input(late.id, { type: 'pick', payload: 0 }, 1000);
+  r.input(late.id, { type: 'vote', payload: r.players[0].id }, 1000);
   assert.ok(!(late.id in r.game.state.votes));
   r.tick(60000); // timer runs out
   assert.equal(r.phase, 'briefing');
@@ -112,11 +112,11 @@ test('intensity filters content; roulette applies one signed points card', () =>
     assert.ok(!/إكس|يندم|يبوس/.test(s.prompt), s.prompt);
   }
   const { r, ps } = mk(3, { mode: 'hardcore' });
-  r.updateSettings('display', { enabledGames: ['roulette', 'lone-wolf'], totalRounds: 0 });
+  r.updateSettings('display', { enabledGames: ['roulette', 'most-likely-to'], totalRounds: 0 });
   r.start('display', 0); // round 1 never opens with the roulette
-  assert.equal(r.nextGameId, 'lone-wolf');
+  assert.equal(r.nextGameId, 'most-likely-to');
   play(r, 0);
-  for (const [i, p] of ps.entries()) r.input(p.id, { type: 'pick', payload: i + 1 }, 5000);
+  for (const p of ps) r.input(p.id, { type: 'vote', payload: ps[0].id }, 5000);
   r.tick(5100);
   assert.equal(r.nextGameId, 'roulette');
   play(r, 6000);

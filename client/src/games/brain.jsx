@@ -13,7 +13,7 @@ const INKS = [
 ];
 
 // ---------------------------------------------------------------- shared "race" UI
-function RacePhone({ snap, v, render }) {
+export function RacePhone({ snap, v, render }) {
   const [shake, setShake] = useState(0);
   const me = v.me;
   const answer = (choice) => {
@@ -58,7 +58,7 @@ function RacePhone({ snap, v, render }) {
   );
 }
 
-function RaceBig({ snap, v, title, color }) {
+export function RaceBig({ snap, v, title, color }) {
   const ps = roster(snap);
   return (
     <div className="flex flex-1 flex-col gap-5">
@@ -84,7 +84,7 @@ function RaceBig({ snap, v, title, color }) {
   );
 }
 
-const Options = ({ options, onPick, cols = 2, renderOpt }) => (
+export const Options = ({ options, onPick, cols = 2, renderOpt }) => (
   <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0,1fr))` }}>
     {options.map((o, i) => (
       <button key={i} type="button" onPointerDown={() => onPick(i)} className="press brutal min-h-20 rounded-2xl bg-white p-3 font-display font-black text-2xl text-black">

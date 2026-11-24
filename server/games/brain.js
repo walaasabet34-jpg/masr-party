@@ -7,7 +7,7 @@ const MISTAKE = 3000;
 const sec = (n) => `${(n / 1000).toFixed(1)} ث`;
 
 // A "race": everyone answers the same list of questions; total time + 3s per mistake.
-function race(def) {
+export function race(def) {
   return {
     ...def,
     minPlayers: 2,

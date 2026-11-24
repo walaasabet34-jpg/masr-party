@@ -89,7 +89,7 @@ export const musicalChairs = {
   minPlayers: 2,
   durationMs: 3 * (15000 + GRAB + PAUSE) + 5000,
   tagline: 'ارقص. وبعدين اتخانق على كرسي.',
-  howTo: 'قوم ارقص طول ما المزيكا شغالة. أول ما تقف، دوس على كرسي فاضي على موبايلك. دايمًا فيه كرسي ناقص. لو دوست والمزيكا لسه شغالة تطلع برة.',
+  howTo: 'قوم ارقص طول ما المزيكا شغالة. أول ما تقف (الشاشة هتقلب أخضر ويتكتب «المزيكا وقفت!» حتى لو موبايلك صامت)، دوس على كرسي فاضي على موبايلك. دايمًا فيه كرسي ناقص. لو دوست والمزيكا لسه شغالة تطلع برة.',
   rule: 'اللي يقعد من غير كرسي ياخد صفر. لحد تلات جولات.',
   setup: (ctx) => ({ stage: 'music', round: 1, rounds: Math.min(3, ctx.players.length - 1), musicFrom: null, stopAt: null, until: null, alive: ctx.players.map((p) => p.id), chairs: [], early: [], out: [], lastOut: [] }),
   onTick(s, ctx) {

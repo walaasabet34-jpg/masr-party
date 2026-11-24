@@ -217,7 +217,7 @@ function QuickDrawPhone({ snap, v }) {
     }
   }, [v.drawn]);
   if (v.duelists.includes(me)) {
-    const shot = v.coin;
+    const shot = v.shot;
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-5">
         <div className="font-display font-black text-3xl">انت في المبارزة! 🤠</div>
@@ -269,7 +269,7 @@ function QuickDrawBig({ snap, v }) {
             <Avatar p={p} size={120} />
             <span className="font-display font-black text-3xl text-white text-stroke">{p?.name}</span>
             <span className="rounded-full bg-black px-3 font-display font-black text-lime">{v.betCounts[i]} رهان</span>
-            {v.coinBy.includes(p?.id) && <span className="text-4xl">💥</span>}
+            {v.shotBy.includes(p?.id) && <span className="text-4xl">💥</span>}
           </div>
         ))}
       </div>

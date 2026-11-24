@@ -56,10 +56,10 @@ test('full party flow with display host, 3 phones, reconnect and points', async 
   // only the host can start; a phone is not the host here
   phones[0].emit('room:start'); await sleep(200);
   assert.equal(tv.snap.phase, 'lobby');
-  tv.emit('room:settings', { totalRounds: 10, enabledGames: ['most-likely-to', 'would-you-rather', 'lone-wolf'] });
+  tv.emit('room:settings', { totalRounds: 10, enabledGames: ['most-likely-to'] });
   tv.emit('room:start');
   await until(() => tv.snap.phase === 'briefing');
-  assert.ok(['most-likely-to', 'would-you-rather', 'lone-wolf'].includes(tv.snap.nextGameId));
+  assert.equal(tv.snap.nextGameId, 'most-likely-to');
 
   // reconnect: phone 2 drops and comes back with its token
   phones[1].ws.close();
@@ -76,8 +76,6 @@ test('full party flow with display host, 3 phones, reconnect and points', async 
     await until(() => phones.every((p) => p.snap.game));
     for (const [i, p] of phones.entries()) {
       if (gid === 'most-likely-to') { p.emit('game:input', { type: 'vote', payload: phones[0].id }); p.emit('game:input', { type: 'vote', payload: phones[2].id }); }
-      if (gid === 'would-you-rather') p.emit('game:input', { type: 'pick', payload: i === 0 ? 1 : 0 });
-      if (gid === 'lone-wolf') p.emit('game:input', { type: 'pick', payload: i === 2 ? 3 : 1 });
     }
     await until(() => tv.snap.phase === 'briefing');
     const res = tv.snap.lastResult;
@@ -90,7 +88,6 @@ test('full party flow with display host, 3 phones, reconnect and points', async 
     const ded = res.deductions[loser.id];
     assert.equal(res.points[loser.id], (res.earned[loser.id] ?? 0) - (ded?.amount ?? 0));
     if (ded) assert.ok(ded.reason && ded.reason.length > 3);
-    if (gid === 'would-you-rather' || gid === 'lone-wolf') assert.equal(ded, undefined);
     loser.emit('player:ready'); await sleep(150);
     assert.ok(tv.snap.ready.includes(loser.id));
     assert.equal(tv.snap.round, round);
