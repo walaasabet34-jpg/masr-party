@@ -11,7 +11,7 @@ const INTRO_MS = 3500;
 const ROUND_OPTIONS = [5, 10, 15, 20, 30, 0];
 // «سهرة سريعة» (5 rounds) opens with one of these: quick to explain, fun on the first try
 export const QUICK_ROUNDS = 5;
-export const QUICK_OPENERS = ['emoji-riddle', 'hot-potato', 'true-or-false', 'most-likely-to', 'would-you-rather'];
+export const QUICK_OPENERS = ['emoji-riddle', 'hot-potato', 'true-or-false', 'number-rush', 'most-likely-to'];
 export const COLORS = ['magenta', 'lime', 'cyan', 'orange', 'violet', 'yellow', 'mint', 'pink', 'blue', 'red'];
 
 const token = () => randomBytes(16).toString('hex');

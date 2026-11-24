@@ -91,14 +91,14 @@ test('server analytics: each lifecycle event once, refresh-safe, no personal dat
   await until(() => host.snap?.players.length === 3);
   phones.pop();
 
-  host.emit('room:settings', { totalRounds: 10, enabledGames: ['would-you-rather'] });
+  host.emit('room:settings', { totalRounds: 10, enabledGames: ['most-likely-to'] });
   host.emit('room:start');
   await until(() => host.snap?.phase === 'briefing');
   // round 1 played to the end
   for (const p of phones) p.emit('player:ready');
   await until(() => host.snap.phase === 'playing');
   await until(() => phones.every((p) => p.snap?.game));
-  for (const [i, p] of phones.entries()) p.emit('game:input', { type: 'pick', payload: i === 0 ? 1 : 0 });
+  for (const p of phones) p.emit('game:input', { type: 'vote', payload: phones[0].id });
   await until(() => host.snap.phase === 'briefing' && host.snap.lastResult);
   // round 2 skipped by the host
   for (const p of phones) p.emit('player:ready');
@@ -128,7 +128,7 @@ test('server analytics: each lifecycle event once, refresh-safe, no personal dat
   assert.equal(count('game_started'), 2);
   assert.deepEqual(named('game_started', room).map((e) => e.properties.play_again), [false, true]);
   assert.equal(count('game_selected'), 2);
-  assert.ok(named('game_selected', room).every((e) => e.properties.game_id === 'would-you-rather'));
+  assert.ok(named('game_selected', room).every((e) => e.properties.game_id === 'most-likely-to'));
   const rounds = named('round_completed', room);
   assert.equal(rounds.length, 2);
   assert.deepEqual(rounds.map((e) => e.properties.skipped), [false, true]);

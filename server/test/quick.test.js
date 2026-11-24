@@ -28,7 +28,7 @@ test('quick night opens with an easy game that fits the players', () => {
     const picks = firstPicks(n, {});
     const allowed = QUICK_OPENERS.filter((id) => getGame(id).minPlayers <= n);
     assert.ok([...picks].every((id) => allowed.includes(id)), `${n} players: ${[...picks]}`);
-    if (n === 2) assert.ok(!picks.has('most-likely-to') && !picks.has('would-you-rather'));
+    if (n === 2) assert.ok(!picks.has('most-likely-to'));
   }
 });
 
