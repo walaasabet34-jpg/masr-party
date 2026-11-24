@@ -125,12 +125,13 @@ test('boat ride: losses stop at 5 per player, getting off still pays +3', () => 
 test('a normal loss scores 0 with no deduction; only stated worst cases cost 1, with a reason', () => {
   const r = new Room('WRST'); r.displayToken = 'tv';
   const ps = ['منى', 'ريم', 'ولاء'].map((name) => r.addPlayer({ name }).player);
-  // Would You Rather: the minority loses but is not deducted
-  r.nextGameId = 'would-you-rather'; r.startGame(0);
-  r.input(ps[0].id, { type: 'pick', payload: 1 }, 100);
-  r.input(ps[1].id, { type: 'pick', payload: 0 }, 100);
-  r.input(ps[2].id, { type: 'pick', payload: 0 }, 100);
-  r.tick(200);
+  // Number Rush: the one who doesn't finish loses but is not deducted
+  r.nextGameId = 'number-rush'; r.startGame(0);
+  r.tick(10);
+  r.game.state.qs.forEach((q, k) => {
+    for (const p of ps.slice(1)) r.input(p.id, { type: 'answer', payload: { i: k, choice: q.answer } }, 100 + k);
+  });
+  r.tick(r.phaseEndsAt + 2100);
   assert.ok(r.lastResult.losers.includes(ps[0].id));
   assert.equal(r.lastResult.deductions[ps[0].id], undefined);
   assert.equal(ps[0].stats.points, 0);
@@ -152,7 +153,7 @@ test('a normal loss scores 0 with no deduction; only stated worst cases cost 1, 
 test('mission: +2 agent, −1 target, once, and only the target can confirm', () => {
   const r = new Room('MSSN'); r.displayToken = 'tv';
   const ps = ['منى', 'ريم', 'ولاء'].map((name) => r.addPlayer({ name }).player);
-  r.updateSettings('display', { missions: true, enabledGames: ['would-you-rather'] });
+  r.updateSettings('display', { missions: true, enabledGames: ['most-likely-to'] });
   r.start('display', 0);
   const agent = ps[0];
   const target = r.player(r.missions[agent.id].target);
