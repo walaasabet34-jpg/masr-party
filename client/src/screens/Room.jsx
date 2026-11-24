@@ -326,6 +326,10 @@ function SettingsPanel({ snap }) {
       </button>
       <div>
         <div className="mb-1 text-xs font-bold tracking-wider text-ink-muted">🔁 {T.rounds}</div>
+        <button type="button" onClick={() => api.settings({ totalRounds: 5 })} className={`mb-2 flex w-full items-center justify-between rounded-2xl border-[3px] border-black px-4 py-2 font-display font-black ${snap.settings.totalRounds === 5 ? 'bg-lime text-black shadow-hard-sm' : 'bg-black/40'}`}>
+          <span>⚡ {T.quickNight}</span>
+          <span className="text-sm opacity-80">{T.quickNightAbout}</span>
+        </button>
         <div className="grid grid-cols-5 gap-2">
           {[10, 15, 20, 30, 0].map((r) => {
             const on = snap.settings.totalRounds === r;

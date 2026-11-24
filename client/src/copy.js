@@ -112,6 +112,8 @@ export const T = {
   gamesOn: 'شغالة',
   rounds: 'الجولات',
   endless: 'مفتوح',
+  quickNight: 'سهرة سريعة',
+  quickNightAbout: '٥ جولات وأول لعبة سهلة',
   roundsNote: 'الجولة حوالي دقيقتين. تقدر تغيّر العدد بين الجولات.',
   missions: 'مهمات سرية',
   missionsAbout: 'مهمة سرية لكل لاعب. لو نجحت وصاحبك أكّد: انت +٢ وهو −١.',
