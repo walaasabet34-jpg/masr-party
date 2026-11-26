@@ -173,10 +173,12 @@ const handlers = {
   },
 
   'mission:claim'(c) {
-    c.room?.claimMission(c.playerId);
+    const claim = c.room?.claimMission(c.playerId);
+    if (claim) analytics.missionClaimed(c.room, claim);
   },
-  'mission:answer'(c, id, yes) {
-    c.room?.answerClaim(c.playerId, id, !!yes);
+  'mission:answer'(c, id, yes, tap) {
+    const answer = c.room?.answerClaim(c.playerId, id, !!yes);
+    if (answer) analytics.missionAnswered(c.room, c.playerId, answer, tap);
   },
   'room:exclude'(c, id) {
     c.room?.exclude(who(c), id);

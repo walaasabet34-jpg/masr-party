@@ -2,6 +2,17 @@
 import { useSyncExternalStore } from 'react';
 import { analyticsIds, trackOpened, capture } from './posthog.js';
 
+// Secret-missions experiment: a seeded host's invite link carries ?m=on or ?m=optional. Read once at
+// load, before the app clears the query string, and sent only when this browser creates a room.
+const MISSIONS_ARM = (() => {
+  try {
+    const m = new URLSearchParams(location.search).get('m');
+    return m === 'on' || m === 'optional' ? m : null;
+  } catch {
+    return null;
+  }
+})();
+
 const LS = {
   get(k, d = null) {
     try {
@@ -263,13 +274,13 @@ export const api = {
     return request('room:peek', { code });
   },
   async hostOnPhone(opts) {
-    const r = await request('room:create', { ...look(), ...opts, ...analyticsIds() });
+    const r = await request('room:create', { ...look(), ...opts, missionsArm: MISSIONS_ARM, ...analyticsIds() });
     if (!r.ok) throw new Error(r.error);
     saveSession({ code: r.code, role: 'player', playerId: r.playerId, token: r.token });
     return r.code;
   },
   async hostOnScreen(opts) {
-    const r = await request('room:createDisplay', { ...opts, ...analyticsIds() });
+    const r = await request('room:createDisplay', { ...opts, missionsArm: MISSIONS_ARM, ...analyticsIds() });
     if (!r.ok) throw new Error(r.error);
     saveSession({ code: r.code, role: 'display', displayToken: r.displayToken });
     return r.code;
@@ -294,7 +305,8 @@ export const api = {
     capture('mission_claimed', { game_id: state.snap?.currentGameId });
     emit('mission:claim');
   },
-  answerClaim: (id, yes) => emit('mission:answer', id, yes),
+  // tap: what the asked player touched first on the question (see ClaimOverlay), for analytics only
+  answerClaim: (id, yes, tap) => emit('mission:answer', id, yes, tap),
   exclude: (id) => emit('room:exclude', id),
   kick: (id) => emit('room:kick', id),
   forceStart: () => emit('room:forceStart'),

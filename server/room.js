@@ -16,9 +16,10 @@ export const COLORS = ['magenta', 'lime', 'cyan', 'orange', 'violet', 'yellow', 
 
 const token = () => randomBytes(16).toString('hex');
 const pid = () => 'p' + randomBytes(5).toString('hex');
+export const MISSION_ARMS = ['on', 'optional'];
 
 export class Room {
-  constructor(code, { mode = 'medium', format = 'party' } = {}) {
+  constructor(code, { mode = 'medium', format = 'party', missionsArm = null } = {}) {
     this.code = code;
     this.createdAt = Date.now();
     this.lastActive = Date.now();
@@ -29,7 +30,10 @@ export class Room {
       format: format === 'boat' ? 'boat' : 'party',
       enabledGames: [],
       totalRounds: 10,
-      missions: false,
+      missions: missionsArm === 'on',
+      // secret-missions experiment: which default this host got from their invite link
+      // ('on' = start enabled, 'optional' = start off but shown). null = not in the experiment.
+      missionsArm: MISSION_ARMS.includes(missionsArm) ? missionsArm : null,
       locked: false,
     };
     this.players = [];
@@ -442,16 +446,26 @@ export class Room {
     this.missions[id] = { text: MISSIONS[Math.floor(rng() * MISSIONS.length)], target: target.id };
   }
 
-  claimMission(id) {
-    const m = this.missions[id];
-    if (!m || this.claims.some((c) => c.from === id)) return;
-    this.claims.push({ id: 'c' + randomBytes(3).toString('hex'), from: id, target: m.target, text: m.text });
-    this.touch();
+  // A player still holding an unclaimed mission of their own: the moment the prank question can be
+  // confused with their own mission button.
+  hasOpenMission(id) {
+    return !!this.missions[id] && !this.claims.some((c) => c.from === id);
   }
 
-  answerClaim(by, claimId, yes) {
+  claimMission(id, now = Date.now()) {
+    const m = this.missions[id];
+    if (!m || this.claims.some((c) => c.from === id)) return null;
+    const c = { id: 'c' + randomBytes(3).toString('hex'), from: id, target: m.target, text: m.text, at: now };
+    this.claims.push(c);
+    this.touch();
+    return c;
+  }
+
+  // returns what analytics needs about the answer (null when the answer was ignored)
+  answerClaim(by, claimId, yes, now = Date.now()) {
     const c = this.claims.find((x) => x.id === claimId);
-    if (!c || c.target !== by) return;
+    if (!c || c.target !== by) return null;
+    const answer = { claim: c, yes, hadOpenMission: this.hasOpenMission(by), msSinceClaim: Math.max(0, now - (c.at ?? now)) };
     this.claims = this.claims.filter((x) => x !== c);
     if (yes) {
       const from = this.player(c.from);
@@ -463,6 +477,7 @@ export class Room {
       this.assignMission(c.from);
     }
     this.touch();
+    return answer;
   }
 
   // ------------------------------------------------------------ the end

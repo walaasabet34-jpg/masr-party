@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, useStore } from '../net.js';
+import { capture } from '../posthog.js';
 import { T } from '../copy.js';
 import { Avatar, Blobs, Btn, Chip, CodeTiles, Countdown, HEX, HoldButton, Logo, Menu, NameTag, Qr, Toggle, TopBar, darkText, playerMap, useGameMeta, useMetas, useNow, useIsBig } from '../ui/kit.jsx';
 import { ResultTable, Reveal, Gallery } from './Results.jsx';
@@ -12,7 +13,9 @@ import { ChatButton, ChatSheet, ChatSide, ChatToast, useChatSound } from '../ui/
 const isLocal = () => ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 let lanOrigin = null;
 const joinOrigin = () => (isLocal() && lanOrigin ? lanOrigin : location.origin);
-const joinUrl = (code) => `${joinOrigin()}/?join=${code}`;
+// how a guest arrived is kept as utm_medium so a guest who later hosts their own room is counted as
+// spread from an invite, not as a visitor from an ad or a post
+const joinUrl = (code, medium = 'qr') => `${joinOrigin()}/?join=${code}&utm_source=host&utm_medium=${medium}`;
 const joinHost = () => joinOrigin().replace(/^https?:\/\//, '');
 const isControl = (snap) => snap.role === 'display' || snap.hostId === snap.me;
 
@@ -360,6 +363,8 @@ function SettingsPanel({ snap }) {
           );
         })}
       </div>
+      {/* decided before the night starts, so it sits up here and not below the fold */}
+      <Toggle on={snap.settings.missions} onChange={(v) => api.settings({ missions: v })} label={`🕶️ ${T.missions}`} sub={T.missionsAbout} />
       <button type="button" onClick={() => setGames(true)} className="flex items-center justify-between rounded-2xl border-[3px] border-black bg-white/10 px-4 py-3 font-display font-black">
         <span>
           🎮 {T.games} <span className="text-ink-muted">{n} {T.gamesOn}</span>
@@ -384,9 +389,20 @@ function SettingsPanel({ snap }) {
         </div>
         <div className="mt-1 text-xs text-ink-muted">{snap.settings.totalRounds ? est(snap.settings.totalRounds) : T.endless} · {T.roundsNote}</div>
       </div>
-      <Toggle on={snap.settings.missions} onChange={(v) => api.settings({ missions: v })} label={`🕶️ ${T.missions}`} sub={T.missionsAbout} />
       {games && <GamesPicker snap={snap} onClose={() => setGames(false)} />}
     </div>
+  );
+}
+
+// One line right above "start": the host sees whether secret missions are on without scrolling,
+// and can flip it there.
+function MissionsLine({ snap }) {
+  if (snap.settings.format !== 'party') return null;
+  const on = snap.settings.missions;
+  return (
+    <button type="button" onClick={() => api.settings({ missions: !on })} className="mb-2 w-full rounded-2xl border-2 border-white/15 bg-bg-elevated px-3 py-2 text-center text-sm font-bold">
+      🕶️ {on ? T.missionsLineOn : T.missionsLineOff}
+    </button>
   );
 }
 
@@ -415,6 +431,7 @@ function LobbyBig({ snap }) {
           <div className="font-display font-black text-xl text-ink-muted">{T.chip2to12} · {T.chipDeck}</div>
         )}
         <div className="mt-auto">
+          <MissionsLine snap={snap} />
           {ok ? <HoldButton label={`${T.startNight} 🚀`} onDone={api.start} color={snap.settings.format === 'boat' ? 'cyan' : T.modes[snap.settings.mode].color} className="w-full" /> : <Btn color="dark" size="lg" className="w-full" disabled>{snap.settings.format === 'boat' ? 'محتاجين ٢ أو ٤ لاعيبة متصلين' : `${T.needPlayers} ٢`}</Btn>}
           {ok && <div className="mt-2 text-center text-xs text-ink-muted">{T.holdToStart}</div>}
         </div>
@@ -433,7 +450,8 @@ function LobbyPhone({ snap }) {
   const count = snap.players.filter((p) => p.connected).length;
   const ok = snap.settings.format === 'boat' ? [2, 4].includes(count) : count >= 2;
   const share = async () => {
-    const url = joinUrl(snap.code);
+    const url = joinUrl(snap.code, 'invite');
+    capture('share_clicked', { method: navigator.share ? 'native' : 'copy', player_count: count, phase: snap.phase });
     try {
       if (navigator.share) await navigator.share({ title: T.appName, text: `تعالى العب معانا «${T.appName}» 🎉`, url });
       else {
@@ -455,7 +473,14 @@ function LobbyPhone({ snap }) {
               <Btn size="sm" onClick={share}>
                 {copied ? T.copied : '📤 ابعت'}
               </Btn>
-              <Btn size="sm" color="dark" onClick={() => setShowQr(!showQr)}>
+              <Btn
+                size="sm"
+                color="dark"
+                onClick={() => {
+                  if (!showQr) capture('share_clicked', { method: 'qr', player_count: count, phase: snap.phase });
+                  setShowQr(!showQr);
+                }}
+              >
                 ▦ QR
               </Btn>
             </div>
@@ -470,6 +495,7 @@ function LobbyPhone({ snap }) {
             <SettingsPanel snap={snap} />
           </div>
           <div className="dock-bottom mt-auto pt-5">
+            <MissionsLine snap={snap} />
             {ok ? <HoldButton label={`${T.startNight} 🚀`} onDone={api.start} color={snap.settings.format === 'boat' ? 'cyan' : T.modes[snap.settings.mode].color} className="w-full" /> : <Btn color="dark" size="lg" className="w-full" disabled>{snap.settings.format === 'boat' ? 'محتاجين ٢ أو ٤ لاعيبة متصلين' : `${T.needPlayers} ٢`}</Btn>}
             {ok && <div className="mt-2 text-center text-xs text-ink-muted">{T.holdToStart}</div>}
           </div>
@@ -725,14 +751,23 @@ function BriefingPhone({ snap }) {
   );
 }
 
+// Is my own mission card unfolded right now? Read by the prank question's tap tracking only.
+const ownMission = { open: false };
+
 function MissionCard({ snap }) {
   const m = snap.mission;
   const P = playerMap(snap);
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    ownMission.open = !!m && open;
+    return () => {
+      ownMission.open = false;
+    };
+  }, [m, open]);
   if (!m) return null;
   const text = m.text.replace('{name}', P[m.target]?.name ?? '؟');
   return (
-    <div className="rounded-[28px] border-4 border-dashed border-white/25 bg-[#111] p-4">
+    <div data-own-mission="1" className="rounded-[28px] border-4 border-dashed border-white/25 bg-[#111] p-4">
       <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between font-display font-black text-lg">
         <span>🕶️ {T.secretMission}</span>
         <span className="text-sm text-ink-muted">{open ? T.missionHide : T.missionShow}</span>
@@ -757,10 +792,24 @@ function MissionCard({ snap }) {
 const CLAIM_TAP_LOCK_MS = 700;
 // if the server still lists a claim this long after we answered it, the answer was lost: ask again
 const CLAIM_RESEND_MS = 5000;
+// What the asked player touches FIRST is the thing we need to know: a player who still holds their
+// own mission may take this question for their own mission button. The final answer alone would hide
+// that, so the first touch is classified by position (works while the answers are still locked) and
+// sent with the answer. Nothing typed or named is sent: only which area, timings and a tap count.
+const inside = (el, x, y) => {
+  const r = el?.getBoundingClientRect();
+  return !!r && r.width > 0 && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+};
+
 function ClaimOverlay({ snap }) {
   const P = playerMap(snap);
   const [answered, setAnswered] = useState(null);
   const [locked, setLocked] = useState(false);
+  const lockedRef = useRef(false);
+  const yesRef = useRef(null);
+  const noRef = useRef(null);
+  const cardRef = useRef(null);
+  const tap = useRef(null); // { id, shownAt, first, taps } for the question on screen
   const c = snap.claims?.find((x) => x.id !== answered);
   const hidden = !c || snap.phase === 'playing';
   // device clock only (no server offset). Layout effect: locked before the question is first painted,
@@ -768,9 +817,43 @@ function ClaimOverlay({ snap }) {
   useLayoutEffect(() => {
     if (hidden) return undefined;
     setLocked(true);
-    const t = setTimeout(() => setLocked(false), CLAIM_TAP_LOCK_MS);
+    lockedRef.current = true;
+    const t = setTimeout(() => {
+      setLocked(false);
+      lockedRef.current = false;
+    }, CLAIM_TAP_LOCK_MS);
     return () => clearTimeout(t);
   }, [c?.id, hidden, answered]);
+  // the question became visible: start (or keep) its tap record, report it was shown once per claim
+  useEffect(() => {
+    if (hidden || tap.current?.id === c.id) return;
+    const hasOpenMission = !!snap.mission && !snap.mission.claimed;
+    tap.current = { id: c.id, shownAt: performance.now(), first: null, taps: 0, hasOpenMission };
+    capture('mission_claim_shown', { claim_id: c.id, has_open_mission: hasOpenMission, own_mission_card_open: ownMission.open, missions_arm: snap.settings.missionsArm ?? null });
+  }, [c?.id, hidden]);
+  // every touch anywhere while the question is up, captured before any button can swallow it
+  useEffect(() => {
+    if (hidden) return undefined;
+    const onDown = (e) => {
+      const rec = tap.current;
+      if (!rec || rec.id !== c.id) return;
+      rec.taps += 1;
+      if (rec.first) return;
+      const x = e.clientX;
+      const y = e.clientY;
+      const own = [...document.querySelectorAll('[data-own-mission]')].some((el) => inside(el, x, y));
+      rec.first = {
+        firstTap: inside(yesRef.current, x, y) ? 'yes' : inside(noRef.current, x, y) ? 'no' : inside(cardRef.current, x, y) ? 'question' : 'backdrop',
+        onOwnMission: own,
+        locked: lockedRef.current,
+        msToFirstTap: performance.now() - rec.shownAt,
+        ownCardOpen: ownMission.open,
+      };
+      capture('mission_claim_first_tap', { claim_id: c.id, first_tap: rec.first.firstTap, first_tap_on_own_mission: own, first_tap_while_locked: rec.first.locked, ms_shown_to_first_tap: Math.round(rec.first.msToFirstTap), has_open_mission: rec.hasOpenMission, missions_arm: snap.settings.missionsArm ?? null });
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [c?.id, hidden]);
   const pendingIds = (snap.claims ?? []).map((x) => x.id).join(',');
   useEffect(() => {
     if (!answered) return undefined;
@@ -784,14 +867,16 @@ function ClaimOverlay({ snap }) {
   if (hidden) return null;
   const from = P[c.from]?.name ?? '؟';
   const answer = (yes) => {
-    if (locked) return;
+    if (lockedRef.current) return;
     setLocked(true);
+    lockedRef.current = true;
     setAnswered(c.id);
-    api.answerClaim(c.id, yes);
+    const rec = tap.current?.id === c.id ? tap.current : null;
+    api.answerClaim(c.id, yes, rec ? { ...rec.first, taps: rec.taps, msToAnswer: performance.now() - rec.shownAt } : undefined);
   };
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-5" role="dialog" aria-modal="true" aria-labelledby="claim-q">
-      <div className="w-full max-w-sm rounded-[28px] border-4 border-black bg-magenta p-5 text-white shadow-hard">
+      <div ref={cardRef} className="w-full max-w-sm rounded-[28px] border-4 border-black bg-magenta p-5 text-white shadow-hard">
         <div className="flex items-center gap-2 font-display font-black">
           <Avatar p={P[c.from]} size={36} />
           <span>{T.claimFrom(from)}</span>
@@ -799,12 +884,17 @@ function ClaimOverlay({ snap }) {
         <div className="mt-3 rounded-2xl bg-black/30 p-3 font-display font-black text-xl">{c.text.replace('{name}', P[c.target]?.name ?? '')}</div>
         <h2 id="claim-q" className="mt-4 text-center font-display font-black text-2xl">{T.claimQuestion}</h2>
         <div className="mt-3 flex flex-col gap-2">
-          <Btn color="white" disabled={locked} onClick={() => answer(true)}>
-            {T.yesItHappened}
-          </Btn>
-          <Btn color="dark" disabled={locked} onClick={() => answer(false)}>
-            {T.noItDidnt}
-          </Btn>
+          {/* locked by the handler, not the disabled attribute, so an early touch is still seen */}
+          <div ref={yesRef}>
+            <Btn color="white" className={`w-full ${locked ? 'opacity-50' : ''}`} aria-disabled={locked} onClick={() => answer(true)}>
+              {T.yesItHappened}
+            </Btn>
+          </div>
+          <div ref={noRef}>
+            <Btn color="dark" className={`w-full ${locked ? 'opacity-50' : ''}`} aria-disabled={locked} onClick={() => answer(false)}>
+              {T.noItDidnt}
+            </Btn>
+          </div>
         </div>
         <p className="mt-3 text-center text-sm text-white/80">{T.claimStakes(from)}</p>
       </div>

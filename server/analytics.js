@@ -76,6 +76,7 @@ function base(room) {
     mode: room.settings.mode,
     host_surface: room.displayToken ? 'screen' : 'phone',
     player_count: room.players.filter((p) => p.connected).length,
+    missions_arm: room.settings.missionsArm ?? null,
   };
 }
 
@@ -127,6 +128,45 @@ export const roomCreated = safe((room, playerId, ids = {}) => {
   r.host = { aid: cleanId(ids.aid), sid: cleanId(ids.sid) };
   if (playerId) remember(room, playerId, ids);
   roomEvent(room, 'room_created', { player_count: room.players.length });
+});
+
+// ---- secret missions: the prank question ("المقلب ده اتعمل فيك؟")
+// What the asked player tried to tap FIRST is reported by their browser with the answer; only
+// these enum/number values are accepted, anything else is dropped.
+const TAP_TARGETS = ['yes', 'no', 'question', 'backdrop'];
+const ms = (v) => (Number.isFinite(v) && v >= 0 && v < 36e5 ? Math.round(v) : null);
+function cleanTap(t = {}) {
+  if (!t || typeof t !== 'object') return {};
+  return {
+    first_tap: TAP_TARGETS.includes(t.firstTap) ? t.firstTap : null,
+    first_tap_on_own_mission: typeof t.onOwnMission === 'boolean' ? t.onOwnMission : null,
+    first_tap_while_locked: typeof t.locked === 'boolean' ? t.locked : null,
+    ms_shown_to_first_tap: ms(t.msToFirstTap),
+    ms_shown_to_answer: ms(t.msToAnswer),
+    taps_before_answer: Number.isInteger(t.taps) && t.taps >= 0 && t.taps < 100 ? t.taps : null,
+    own_mission_card_open: typeof t.ownCardOpen === 'boolean' ? t.ownCardOpen : null,
+  };
+}
+
+export const missionClaimed = safe((room, claim) => {
+  if (!claim) return;
+  playerEvent(room, claim.from, 'mission_claim_created', {
+    claim_id: claim.id,
+    room_phase: room.phase,
+    target_has_open_mission: room.hasOpenMission(claim.target),
+  });
+});
+
+export const missionAnswered = safe((room, by, answer, tap) => {
+  if (!answer) return;
+  playerEvent(room, by, 'mission_claim_answered', {
+    claim_id: answer.claim.id,
+    answer: answer.yes ? 'yes' : 'no',
+    answerer_had_open_mission: answer.hadOpenMission,
+    ms_since_claim: answer.msSinceClaim,
+    room_phase: room.phase,
+    ...cleanTap(tap),
+  });
 });
 
 export const roomJoined = safe((room, player, ids = {}) => {

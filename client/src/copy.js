@@ -117,6 +117,8 @@ export const T = {
   roundsNote: 'الجولة حوالي دقيقتين. تقدر تغيّر العدد بين الجولات.',
   missions: 'مهمات سرية',
   missionsAbout: 'مهمة سرية لكل لاعب. لو نجحت وصاحبك أكّد: انت +٢ وهو −١.',
+  missionsLineOn: 'المهمات السرية شغالة · دوس تقفلها',
+  missionsLineOff: 'المهمات السرية مقفولة · دوس تشغّلها',
   presetClassics: 'الكلاسيك',
   presetEverything: 'كله',
   presetCustom: 'على مزاجي',

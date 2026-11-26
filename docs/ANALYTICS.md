@@ -8,8 +8,8 @@ configured, every call is a silent no-op, so local dev and tests run as before.
 | Where | What | Why |
 |---|---|---|
 | `server/analytics.js` (posthog-node) | `room_created`, `room_joined`, `game_started`, `player_game_started`, `game_selected`, `round_completed`, `player_round_completed`, `basra_match_completed`, `party_ended`, `game_exited` | The server owns room state, so each event fires once on the real state transition. A refresh or reconnect re-takes the same seat and cannot duplicate anything. |
-| `client/src/posthog.js` (posthog-js) | `game_opened`, `$pageview` (journey), `chat_message_sent`, `mission_claimed` (counts only), exceptions, session replay | Things only the browser knows |
-| `server/index.js` | ~12 one-line hooks in connection handlers and the tick loop | No change to `room.js` or any game |
+| `client/src/posthog.js` (posthog-js) | `game_opened`, `$pageview` (journey), `chat_message_sent`, `mission_claimed` (counts only), `mission_claim_shown`, `mission_claim_first_tap`, `share_clicked`, exceptions, session replay | Things only the browser knows |
+| `server/index.js` | ~14 one-line hooks in connection handlers and the tick loop | `room.js` only returns what a claim/answer was and keeps the missions arm; no game logic changes |
 
 The browser sends its anonymous PostHog `distinct_id` and `session_id` with create/join/resume
 (`aid`, `sid`). Server events then join the same player journey and session replay.
@@ -27,11 +27,25 @@ The browser sends its anonymous PostHog `distinct_id` and `session_id` with crea
 | `round_completed` | a round resolves (Basra: each hand); **room/host-level** | `game_id`, `round`, `skipped`, `round_duration_ms`, `player_count`, `winners_count`, `deductions_count` |
 | `player_round_completed` | a player participated in a completed (not skipped) round/hand | `game_id`, `round` |
 | `basra_match_completed` | a Basra match reaches its actual `over` stage (not merely one finished hand) | `game_id`, `hands_completed` |
+| `mission_claim_created` | a player says they did their secret mission (server, once per claim) | `claim_id`, `target_has_open_mission` |
+| `mission_claim_answered` | the pranked player answers «المقلب ده اتعمل فيك؟» | `claim_id`, `answer` (`yes`/`no`), `answerer_had_open_mission`, `ms_since_claim`, and from their browser: `first_tap` (`yes`/`no`/`question`/`backdrop`), `first_tap_on_own_mission` (the first touch landed where their own mission card is), `first_tap_while_locked` (inside the 700 ms guard), `ms_shown_to_first_tap`, `ms_shown_to_answer`, `taps_before_answer`, `own_mission_card_open` |
+| `mission_claim_shown` (browser) | the prank question actually appeared on the asked player's screen, once per claim | `claim_id`, `has_open_mission`, `own_mission_card_open`, `missions_arm` |
+| `mission_claim_first_tap` (browser) | the first touch anywhere while that question is up, sent at once (kept even if the player never answers) | `claim_id`, `first_tap`, `first_tap_on_own_mission`, `first_tap_while_locked`, `ms_shown_to_first_tap`, `has_open_mission`, `missions_arm` |
+| `share_clicked` (browser) | host taps «ابعت» or opens the QR | `method` (`native`/`copy`/`qr`), `player_count`, `phase` |
 | `party_ended` | the night ends | `end_reason` (`completed`/`host_ended`/`room_closed`), `rounds_completed`, `night_duration_ms` |
 | `game_exited` | a player leaves the room, once per seat | `exit_reason` (`left`/`kicked`/`disconnected` after 2 min away/`room_closed`/`idle`), `session_duration_ms`, `rounds_played` |
 | `$pageview` | screen change | `$pathname` = `/app/home`, `/app/lobby`, `/app/briefing`, `/app/play/<game_id>`, `/app/ended`… |
 
-Every server event carries `room_id`, `format`, `mode`, `host_surface` and `player_count`.
+Every server event carries `room_id`, `format`, `mode`, `host_surface`, `player_count` and `missions_arm`.
+
+**Secret-missions experiment.** A seeded host's invite link carries `?m=on` (missions start enabled) or
+`?m=optional` (start off, but the switch is shown under the mode chips and again right above «يلا نبدأ»).
+The room keeps it as `missions_arm`; rooms created without it have `missions_arm = null` and are not in
+the experiment. Only count claims where `mission_claim_shown` fired: a claim that never reached the
+asked player's screen says nothing about confusion. Join browser and server events on `claim_id`.
+
+**Invite links** are `/?join=CODE&utm_source=host&utm_medium=invite` (from «ابعت») or `utm_medium=qr`
+(from the QR), so a guest who later hosts is counted as spread from an invite, not as ad/post traffic.
 
 ## Privacy
 
