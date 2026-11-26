@@ -14,8 +14,8 @@ export const roulette = {
   minPlayers: 2,
   durationMs: 7500,
   tagline: 'العجلة بتختار لاعب ومفاجأة نقط.',
-  howTo: 'الكل على العجلة. لاعب واحد ياخد كارت عشوائي: +٢ أو +٣ أو −١ أو −٢ نقطة. الباقي نقطهم ثابتة.',
-  rule: 'كارت واحد للاعب واحد. الرصيد ممكن يبقى بالسالب.',
+  howTo: 'مش محتاج تعمل حاجة 🍿 العجلة هتلف وتختار لاعب واحد بس، وده ياخد مفاجأة: يكسب ٢ أو ٣ نقط، أو يخسر نقطة أو اتنين.',
+  rule: 'الباقي نقطهم ما بتتغيرش.',
   setup(ctx) {
     const wedges = ctx.players.map((p) => p.id);
     const cards = [2, 3, -1, -2];
@@ -30,7 +30,7 @@ export const roulette = {
       winners: s.delta > 0 ? [s.targetId] : [],
       losers: s.delta < 0 ? [s.targetId] : [],
       points: Object.fromEntries(ctx.players.map((p) => [p.id, p.id === s.targetId ? s.delta : 0])),
-      table: { layout: 'list', rows: ctx.players.map((p) => (p.id === s.targetId ? { id: p.id, mark: '💀', value: `${s.delta > 0 ? '+' : ''}${s.delta} نقطة`, why: 'العجلة اختارته' } : { id: p.id, value: 'المرة دي لأ' })).sort((a) => (a.mark ? 1 : -1)) },
+      table: { layout: 'list', rows: ctx.players.map((p) => (p.id === s.targetId ? { id: p.id, mark: '💀', value: `${s.delta > 0 ? '+' : ''}${s.delta} نقطة`, why: 'اختيار العجلة' } : { id: p.id, value: 'المرة دي لأ' })).sort((a) => (a.mark ? 1 : -1)) },
     };
   },
   view: (s) => ({ wedges: s.wedges, targetId: s.targetId, turns: s.turns, startAt: s.startAt }),
@@ -46,8 +46,8 @@ export const hotPotato = {
   minPlayers: 2,
   durationMs: 30000,
   tagline: 'عدّي القنبلة قبل ما تفرقع.',
-  howTo: 'موبايل واحد هياخد القنبلة 💣. لو معاك، دوس على أي حد تاني تعدّيهاله. محدش يعرف هتفرقع إمتى.',
-  rule: 'اللي ماسك القنبلة وهي بتفرقع يتخصم منه نقطة، والباقي ياخدوا نقطة.',
+  howTo: 'لو القنبلة 💣 معاك، دوس على اسم أي حد تعدّيهاله بسرعة. محدش يعرف هتفرقع إمتى.',
+  rule: 'اللي القنبلة تفرقع معاه يتخصم منه نقطة، والباقي ياخدوا نقطة.',
   setup: (ctx) => ({ holder: ctx.players[Math.floor(ctx.rng() * ctx.players.length)].id, startAt: null, explodeAt: null, exploded: false, lastPassAt: 0, passes: 0, from: null }),
   onTick(s, ctx) {
     let n = s;
@@ -65,13 +65,13 @@ export const hotPotato = {
   isComplete: (s) => s.exploded,
   resolve(s, ctx) {
     return {
-      headline: `💥 بوووم! ${nameOf(ctx.players, s.holder)} كان ماسك القنبلة`,
+      headline: `💥 بوووم! القنبلة فرقعت مع ${nameOf(ctx.players, s.holder)}`,
       winners: [],
       losers: [s.holder],
-      deduct: { [s.holder]: 'القنبلة فرقعت في إيدك' },
+      deduct: { [s.holder]: 'القنبلة فرقعت معاه' },
       points: Object.fromEntries(ctx.players.map((p) => [p.id, p.id === s.holder ? 0 : 1])),
       reveal: { label: 'فرقعت بعد', value: `${s.passes} تمريرة` },
-      table: { layout: 'list', rows: ctx.players.map((p) => (p.id === s.holder ? { id: p.id, mark: '💥', value: 'بوم', why: 'كانت معاه وهي بتفرقع' } : { id: p.id, value: 'عدّاها في وقتها' })).sort((a) => (a.mark ? 1 : -1)) },
+      table: { layout: 'list', rows: ctx.players.map((p) => (p.id === s.holder ? { id: p.id, mark: '💥', value: 'بوم', why: 'وقت الفرقعة 💥' } : { id: p.id, value: 'في الأمان' })).sort((a) => (a.mark ? 1 : -1)) },
     };
   },
   view: (s) => ({ holder: s.holder, from: s.from, startAt: s.startAt, passes: s.passes, exploded: s.exploded }),
@@ -89,8 +89,9 @@ export const musicalChairs = {
   minPlayers: 2,
   durationMs: 3 * (15000 + GRAB + PAUSE) + 5000,
   tagline: 'ارقص. وبعدين اتخانق على كرسي.',
-  howTo: 'قوم ارقص طول ما المزيكا شغالة. أول ما تقف (الشاشة هتقلب أخضر ويتكتب «المزيكا وقفت!» حتى لو موبايلك صامت)، دوس على كرسي فاضي على موبايلك. دايمًا فيه كرسي ناقص. لو دوست والمزيكا لسه شغالة تطلع برة.',
-  rule: 'اللي يقعد من غير كرسي ياخد صفر. لحد تلات جولات.',
+  howTo: 'ارقص طول ما المزيكا شغالة. أول ما تقف، دوس على كرسي فاضي على موبايلك. دايمًا فيه كرسي ناقص.',
+  rule: 'اللي يفضل من غير كرسي ياخد صفر.',
+  details: 'لو دوست والمزيكا لسه شغالة تطلع برة. لما المزيكا تقف الشاشة هتقلب أخضر ويتكتب «المزيكا وقفت!» حتى لو موبايلك صامت. لحد ٣ جولات.',
   setup: (ctx) => ({ stage: 'music', round: 1, rounds: Math.min(3, ctx.players.length - 1), musicFrom: null, stopAt: null, until: null, alive: ctx.players.map((p) => p.id), chairs: [], early: [], out: [], lastOut: [] }),
   onTick(s, ctx) {
     if (s.stopAt === null) return { ...s, musicFrom: ctx.now, stopAt: ctx.now + 6000 + Math.floor(ctx.rng() * 8000) };
@@ -122,15 +123,15 @@ export const musicalChairs = {
     const recent = s.lastOut.filter((id) => !s.alive.includes(id));
     const earlier = s.out.filter((id) => !recent.includes(id));
     const groups = [
-      [s.alive, '🪑 فضل قاعد'],
-      [recent, '🚶 طلع في آخر جولة'],
-      [earlier, '🚶 طلع بدري'],
+      [s.alive, '🪑 لحد الآخر'],
+      [recent, '🚶 خروج في آخر جولة'],
+      [earlier, '🚶 خروج بدري'],
     ].filter(([ids]) => ids.length);
-    const rows = groups.flatMap(([ids], g) => ids.map((id) => ({ id, group: g, value: ids === s.alive ? 'لقى كرسي' : 'برة' })));
-    for (const p of ctx.players) if (!rows.some((r) => r.id === p.id)) rows.push({ id: p.id, value: 'ما قعدش' });
+    const rows = groups.flatMap(([ids], g) => ids.map((id) => ({ id, group: g, value: ids === s.alive ? 'على كرسي' : 'برة' })));
+    for (const p of ctx.players) if (!rows.some((r) => r.id === p.id)) rows.push({ id: p.id, value: 'من غير كرسي' });
     const losers = s.alive.length ? s.out.filter((id) => has(ctx, id)) : ctx.players.map((p) => p.id);
     return {
-      headline: s.alive.length ? `🪑 ${namesOf(ctx.players, s.alive)} لقوا كرسي!` : 'محدش لقى كرسي!',
+      headline: s.alive.length ? `🪑 على الكراسي: ${namesOf(ctx.players, s.alive)}` : 'محدش لقى كرسي!',
       winners: s.alive,
       losers,
       points: Object.fromEntries(ctx.players.map((p) => [p.id, losers.includes(p.id) ? 0 : 2])),
@@ -213,15 +214,15 @@ export const shellShock = {
       layout: 'groups',
       groups: usedCups.map((c) => ({ title: `${c === at ? '🪙' : '🥤'} كباية ${c + 1}`, count: gs.filter((id) => s.picks[id] === c).length })),
       rows: [
-        ...usedCups.flatMap((c, g) => gs.filter((id) => s.picks[id] === c).map((id) => ({ id, group: g, value: c === at ? 'لقاه' : 'فاضية' }))),
-        ...gs.filter((id) => s.picks[id] === undefined).map((id) => ({ id, value: 'ما اختارش' })),
-        { id: s.hustler, mark: '🎩', value: `ضحك على ${fooled.length}`, why: 'النصّاب' },
+        ...usedCups.flatMap((c, g) => gs.filter((id) => s.picks[id] === c).map((id) => ({ id, group: g, value: c === at ? '🪙 صح' : 'فاضية' }))),
+        ...gs.filter((id) => s.picks[id] === undefined).map((id) => ({ id, value: 'من غير اختيار' })),
+        { id: s.hustler, mark: '🎩', value: `${fooled.length} اتضحك عليهم`, why: 'النصّاب' },
       ],
     };
     const points = (losers) => Object.fromEntries(ctx.players.map((p) => [p.id, losers.includes(p.id) ? 0 : p.id === s.hustler ? fooled.length : 2]));
     if (fooled.length) {
       return {
-        headline: found.length ? `العملة كانت تحت كباية ${at + 1}. ${h} ضحك على ${namesOf(ctx.players, fooled)} 🎩` : `${h} نصب على الكل! العملة كانت تحت كباية ${at + 1} 🎩`,
+        headline: found.length ? `العملة كانت تحت كباية ${at + 1}. النصّاب ${h} ضحك على ${namesOf(ctx.players, fooled)} 🎩` : `النصّاب ${h} نصب على الكل! العملة كانت تحت كباية ${at + 1} 🎩`,
         winners: [...found, s.hustler],
         losers: fooled,
         points: points(fooled),
@@ -286,8 +287,9 @@ export const rockPaperScissors = {
   minPlayers: 2,
   durationMs: MAX_THROWS * (THROW_MS + SHOW_MS) + 3000,
   tagline: 'مبارزات عشوائية. أحسن من تلاتة.',
-  howTo: 'هيطلعلك خصم عشوائي. اختار ✊ حجرة أو ✋ ورقة أو ✌️ مقص في السر. أول واحد يكسب رميتين ياخد المبارزة، والتعادل ما بيتحسبش.',
+  howTo: 'اختار في السر ✊ حجرة أو ✋ ورقة أو ✌️ مقص قدام خصم عشوائي. أول واحد يكسب مرتين يكسب المبارزة.',
   rule: 'خسران كل مبارزة ياخد صفر.',
+  details: 'التعادل ما بيتحسبش، وبتعيدوا الرمية.',
   setup(ctx) {
     const ids = shuffle(ctx.rng, ctx.players.map((p) => p.id));
     const duels = [];
@@ -329,8 +331,8 @@ export const rockPaperScissors = {
     else if (duels.length === 1 && duels[0].length === 2 && r.winners.length === 1) {
       const w = r.winners[0];
       const l = duels[0].find((id) => id !== w);
-      headline = `${nameOf(ctx.players, w)} غلب ${nameOf(ctx.players, l)} ${wins[w] ?? 0}–${wins[l] ?? 0} ✊`;
-    } else headline = `${namesOf(ctx.players, r.winners)} كسبوا مبارزاتهم ✊`;
+      headline = `${nameOf(ctx.players, w)} قدام ${nameOf(ctx.players, l)}: ${wins[w] ?? 0}–${wins[l] ?? 0} ✊`;
+    } else headline = `كسبوا مبارزاتهم: ${namesOf(ctx.players, r.winners)} ✊`;
     return {
       headline,
       ...r,
@@ -376,7 +378,7 @@ export const loneWolf = {
     const table = {
       layout: 'groups',
       groups: nums.map((n) => ({ title: `${count.get(n) > 1 ? '💥' : '🐺'} ${n}`, count: count.get(n) })),
-      rows: [...nums.flatMap((n, g) => ids.filter((id) => s.picks[id] === n).map((id) => ({ id, group: g, value: count.get(n) > 1 ? 'تخبيط' : 'ديب وحداني' }))), ...asleep.map((id) => ({ id, value: 'نام' }))],
+      rows: [...nums.flatMap((n, g) => ids.filter((id) => s.picks[id] === n).map((id) => ({ id, group: g, value: count.get(n) > 1 ? 'تخبيط' : 'ديب وحداني' }))), ...asleep.map((id) => ({ id, value: 'من غير اختيار' }))],
     };
     const points = (losers, winners) => Object.fromEntries(ids.map((id) => [id, losers.includes(id) || !(id in s.picks) ? 0 : winners.includes(id) ? 3 : 1]));
     if (clash.length + asleep.length) {

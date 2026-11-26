@@ -87,12 +87,12 @@ const imposter = {
           {v.role === 'imposter' ? (
             <div className="text-black">
               <div className="font-display font-black text-3xl text-red">انت الدخيل! 🕵️</div>
-              <div className="mt-1">التصنيف: <b>{v.category}</b></div>
+              <div className="mt-1">الموضوع: <b>{v.category}</b></div>
               <div className="text-sm opacity-70">اندمج معاهم. محدش لازم ياخد باله.</div>
             </div>
           ) : (
             <div className="text-black">
-              <div className="text-sm opacity-70">التصنيف: {v.category}</div>
+              <div className="text-sm opacity-70">الموضوع: {v.category}</div>
               <div className="font-display font-black text-5xl">{v.word}</div>
             </div>
           )}
@@ -101,7 +101,7 @@ const imposter = {
           <div className="font-display font-black">لفّوا، كل واحد يقول كلمة واحدة</div>
           <div className="mt-1 flex items-center justify-center gap-2">
             <Avatar p={P[v.starter]} size={30} />
-            <span className="font-display font-black">{v.starter === snap.me ? 'انت تبدأ!' : `${P[v.starter]?.name} يبدأ`}</span>
+            <span className="font-display font-black">{v.starter === snap.me ? 'انت تبدأ!' : `البداية مع ${P[v.starter]?.name}`}</span>
           </div>
         </div>
         <GameTimer snap={snap} until={v.discussUntil} total={90000} />
@@ -114,11 +114,11 @@ const imposter = {
     const P = playerMap(snap);
     return (
       <div className="flex flex-1 flex-col items-center gap-6">
-        <Prompt big color="violet">التصنيف: {v.category}</Prompt>
+        <Prompt big color="violet">الموضوع: {v.category}</Prompt>
         {v.stage === 'discuss' ? (
           <>
             <div className="flex items-center gap-4 font-display font-black text-4xl">
-              <Avatar p={P[v.starter]} size={80} /> {P[v.starter]?.name} يبدأ
+              <Avatar p={P[v.starter]} size={80} /> البداية مع {P[v.starter]?.name}
             </div>
             <div className="text-2xl text-ink-muted">لفّوا، كل واحد يقول كلمة واحدة بصوت عالي</div>
             <GameTimer snap={snap} until={v.discussUntil} total={90000} />
@@ -219,9 +219,9 @@ const quipClash = {
           {v.myAnswer ? <Sent>اتبعتت ✓ «{v.myAnswer}»</Sent> : <TextAnswer placeholder="اكتب أظرف إجابة…" onSend={(text) => send('answer', { text })} />}
         </div>
       );
-    return <DuelVotePhone snap={snap} v={v} renderEntry={(e) => <div className="font-display font-black text-xl">{e ?? '(ما كتبش 🦗)'}</div>} />;
+    return <DuelVotePhone snap={snap} v={v} renderEntry={(e) => <div className="font-display font-black text-xl">{e ?? '(من غير إجابة 🦗)'}</div>} />;
   },
-  Big: ({ snap, v }) => <DuelBig snap={snap} v={v} writing="اكتبوا إجاباتكم على الموبايل 🎤" sub={v.written} renderEntry={(e) => <div className="font-display font-black text-4xl leading-snug">{e ?? '(ما كتبش 🦗)'}</div>} />,
+  Big: ({ snap, v }) => <DuelBig snap={snap} v={v} writing="اكتبوا إجاباتكم على الموبايل 🎤" sub={v.written} renderEntry={(e) => <div className="font-display font-black text-4xl leading-snug">{e ?? '(من غير إجابة 🦗)'}</div>} />,
 };
 
 const doodleDuel = {
@@ -371,11 +371,11 @@ const telephone = {
       return (
         <div className="flex flex-1 flex-col gap-3">
           <div className="text-center font-display font-black text-ink-muted">
-            سلسلة {r.r + 1}/{r.total}
+            جملة {r.r + 1} من {r.total}
           </div>
           <ChainView snap={snap} r={r} />
           {r.perfect ? (
-            <Sent>سلسلة مظبوطة! 🎉</Sent>
+            <Sent>وصلت زي ما هي! 🎉</Sent>
           ) : canBlame ? (
             <div className="flex flex-col gap-2">
               <div className="text-center font-display font-black text-xl">مين بوّظها؟</div>
@@ -405,7 +405,7 @@ const telephone = {
           </>
         ) : task.kind === 'write' ? (
           <div className="flex flex-col gap-2">
-            <Prompt small>اكتب جملة مضحكة يترسم عليها</Prompt>
+            <Prompt small>اكتب جملة مضحكة تنفع تترسم</Prompt>
             <button type="button" onClick={() => setPhrase(PHRASES[Math.floor(Math.random() * PHRASES.length)])} className="self-start rounded-full bg-white/10 px-3 py-1 font-display font-black">
               عشوائي 🎲
             </button>
@@ -445,7 +445,7 @@ const telephone = {
       return (
         <div className="flex flex-1 flex-col gap-5">
           <div className="text-center font-display font-black text-3xl">
-            سلسلة {v.reveal.r + 1} من {v.reveal.total} {v.reveal.perfect && '· مظبوطة! 🎉'}
+            جملة {v.reveal.r + 1} من {v.reveal.total} {v.reveal.perfect && '· وصلت زي ما هي! 🎉'}
           </div>
           <ChainView snap={snap} r={v.reveal} big />
           {!v.reveal.perfect && (

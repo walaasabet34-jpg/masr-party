@@ -133,15 +133,22 @@ export class Room {
   leave(id) {
     const p = this.player(id);
     if (!p) return;
-    if (this.isHost(id) && !this.displayToken) {
+    const wasHost = this.isHost(id);
+    // a phone host hands the room to the player who has been connected the longest;
+    // the party only closes when nobody connected is left to take over
+    const heir = wasHost && !this.displayToken ? this.players.find((x) => x.id !== id && x.connected && !x.excluded) : null;
+    if (wasHost && !this.displayToken && !heir) {
       this.closed = 'host_left';
       return;
     }
     this.players = this.players.filter((x) => x.id !== id);
+    this.dropFromRound(id);
     this.ready = this.ready.filter((x) => x !== id);
     delete this.missions[id];
+    this.claims = this.claims.filter((c) => c.from !== id && c.target !== id);
     this.chat.system('left', p);
-    if (this.isHost(id)) this.hostId = null;
+    if (wasHost) this.hostId = heir ? heir.id : null;
+    if (heir) this.chat.system('newHost', heir);
     this.touch();
   }
 
@@ -167,12 +174,18 @@ export class Room {
     return by === 'display' || this.isHost(by);
   }
 
+  // a player who is gone stops counting in the running round, so it never waits on them
+  dropFromRound(id) {
+    if (this.game) this.game = { ...this.game, roster: this.game.roster.filter((p) => p.id !== id) };
+  }
+
   kick(by, id) {
     if (!this.canControl(by) || id === this.hostId) return;
     const p = this.player(id);
     if (!p) return;
     this.kicked.add(p.token);
     this.players = this.players.filter((x) => x.id !== id);
+    this.dropFromRound(id);
     this.chat.system('kicked', p);
     this.ready = this.ready.filter((x) => x !== id);
     this.touch();

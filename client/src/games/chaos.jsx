@@ -289,7 +289,7 @@ const shellShock = {
     const reveal = v.stage === 'reveal' || v.stage === 'done';
     return (
       <div className="flex flex-1 flex-col gap-4">
-        <div className="text-center font-display font-black text-xl">{hustler ? 'انت النصّاب 🎩' : `${P[v.hustler]?.name} هو النصّاب`}</div>
+        <div className="text-center font-display font-black text-xl">{hustler ? 'انت النصّاب 🎩' : `النصّاب: ${P[v.hustler]?.name}`}</div>
         <Cups v={v} P={P} showShot={v.stage === 'show' || reveal} picks={reveal ? v.picks : null} onPick={!hustler && v.stage === 'pick' && v.myPick === null ? (slot) => (send('pick', slot), sfx.pop()) : hustler && v.stage === 'shuffle' ? (slot) => {
           if (sel === null) return setSel(slot);
           if (sel !== slot) send('swap', { a: sel, b: slot });
@@ -310,7 +310,7 @@ const shellShock = {
             <Btn color="lime" onClick={() => send('done')}>خلصت</Btn>
           </div>
         )}
-        {v.stage === 'shuffle' && !hustler && <div className="text-center font-display font-black">{P[v.hustler]?.name} بيلخبط… تابع!</div>}
+        {v.stage === 'shuffle' && !hustler && <div className="text-center font-display font-black">النصّاب بيلخبط… تابع!</div>}
         {v.stage === 'pick' && !hustler && (v.myPick === null ? <div className="text-center font-display font-black text-2xl">العملة فين؟ دوس على كباية</div> : <Sent>اخترت كباية {v.myPick + 1}</Sent>)}
         {v.stage === 'pick' && hustler && <div className="text-center font-display font-black">بيخمّنوا… 😈</div>}
         {v.stage === 'pick' && <GameTimer snap={snap} until={v.until} total={12000} />}
@@ -322,7 +322,7 @@ const shellShock = {
     const reveal = v.stage === 'reveal' || v.stage === 'done';
     return (
       <div className="flex flex-1 flex-col items-center gap-8">
-        <Prompt big color="red">{v.stage === 'show' ? 'بصوا على العملة 👀' : v.stage === 'shuffle' ? `${P[v.hustler]?.name} بيلخبط! 🎩` : v.stage === 'pick' ? 'العملة فين؟' : 'العملة كانت هنا!'}</Prompt>
+        <Prompt big color="red">{v.stage === 'show' ? 'بصوا على العملة 👀' : v.stage === 'shuffle' ? 'النصّاب بيلخبط! 🎩' : v.stage === 'pick' ? 'العملة فين؟' : 'العملة كانت هنا!'}</Prompt>
         <Cups v={v} P={P} big showShot={v.stage === 'show' || reveal} picks={reveal ? v.picks : null} />
         {v.stage === 'pick' && <Done ids={v.picked} snap={snap} big label="اختاروا" />}
       </div>
@@ -432,7 +432,7 @@ const loneWolf = {
   ),
   Big: ({ snap, v }) => (
     <div className="flex flex-1 flex-col items-center gap-6">
-      <Prompt big color="violet">اختاروا رقم من 1 لـ{v.max} 🐺</Prompt>
+      <Prompt big color="violet">اختاروا رقم من ١ لـ{v.max} 🐺</Prompt>
       <GameTimer snap={snap} />
       <Done ids={v.picked} snap={snap} big label="اختاروا" />
     </div>

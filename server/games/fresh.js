@@ -16,8 +16,9 @@ export const finishProverb = race({
   isNew: true,
   durationMs: 40000,
   tagline: 'أول المثل عندك. كمّله صح.',
-  howTo: 'هيظهر أول مثل مصري، ودوس على آخره الصح من أربعة. خمس أمثال، وكل غلطة بـ٣ ثواني زيادة.',
-  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ ياخد صفر.',
+  howTo: 'كمّل المثل المصري: دوس على آخره الصح من ٤ اختيارات. ٥ أمثال.',
+  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ صفر.',
+  details: 'كل غلطة بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     return pickFreshMany(ctx, PROVERBS, 5).map((x) => {
       const others = shuffle(ctx.rng, PROVERBS.filter((y) => y.id !== x.id)).slice(0, 3).map((y) => y.end);
@@ -37,8 +38,9 @@ export const zoomIn = race({
   isNew: true,
   durationMs: 40000,
   tagline: 'صورة قريبة قوي. دي إيه؟',
-  howTo: 'هتشوف حتة صغيرة من صورة متكبّرة قوي، وهي بتبعد شوية بشوية. اعرف هي إيه ودوس على اسمها. خمس صور، وكل غلطة بـ٣ ثواني زيادة.',
-  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ ياخد صفر.',
+  howTo: 'اعرف الصورة دي إيه ودوس على اسمها. هتبدأ قريبة قوي وتبعد شوية بشوية. ٥ صور.',
+  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ صفر.',
+  details: 'كل غلطة بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     return pickFreshMany(ctx, ZOOMS, 5).map((x) => {
       const others = shuffle(ctx.rng, ZOOMS.filter((y) => y.id !== x.id)).slice(0, 3).map((y) => y.name);
@@ -62,8 +64,9 @@ export const orderUp = race({
   isNew: true,
   durationMs: 55000,
   tagline: 'احفظ الطلب. وما تلخبطش.',
-  howTo: 'طلب من ٣ حاجات هيظهر ثانيتين ونص بس. بعدين اختار الطلب الصح من أربع طلبات شبه بعض. أربع طلبات، وكل غلطة بـ٣ ثواني زيادة.',
-  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ ياخد صفر.',
+  howTo: 'احفظ الطلب (٣ حاجات) في ثانيتين ونص، وبعدين اختاره من ٤ طلبات شبه بعض. ٤ طلبات.',
+  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ صفر.',
+  details: 'كل غلطة بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     const show = (o) => o.map((x) => ({ e: x.emoji, n: x.name }));
     return Array.from({ length: 4 }, () => {
@@ -88,8 +91,9 @@ export const numberRush = race({
   isNew: true,
   durationMs: 35000,
   tagline: 'من ١ لـ١٢. بأسرع ما يمكن.',
-  howTo: 'الأرقام من ١ لـ١٢ متلخبطة على موبايلك. دوس عليهم بالترتيب: ١ وبعدين ٢ وبعدين ٣… كل دوسة غلط بـ٣ ثواني زيادة.',
-  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ ياخد صفر.',
+  howTo: 'دوس على الأرقام بالترتيب من ١ لـ١٢: ١ وبعدين ٢ وبعدين ٣…',
+  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ صفر.',
+  details: 'كل دوسة غلط بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     const grid = shuffle(ctx.rng, Array.from({ length: RUSH_N }, (_, i) => i + 1));
     return Array.from({ length: RUSH_N }, (_, i) => ({ prompt: i + 1, options: grid, answer: grid.indexOf(i + 1) }));
@@ -97,14 +101,29 @@ export const numberRush = race({
 });
 
 // ---------------------------------------------------------------- ضربة جزاء
+// One match per round: two players take turns, 3 kicks each. Shooter and keeper pick in secret;
+// the kick is revealed on both phones at the same moment. Everyone else calls the winner.
 const DIRS = ['right', 'middle', 'left'];
-const PK_CHOOSE = 9000;
-const PK_REVEAL = 4000;
-const PK_ROUNDS = 3;
-const targetOf = (s, id, round) => {
-  const n = s.order.length;
-  const i = s.order.indexOf(id);
-  return s.order[(i + 1 + (round % (n - 1))) % n];
+const PK_CHOOSE = 8000;
+const PK_REVEAL = 3500;
+const PK_EACH = 3; // kicks per player
+const PK_SUDDEN = 2; // extra kicks per player if tied
+const PK_MAX = 2 * (PK_EACH + PK_SUDDEN);
+const pkShooter = (s) => s.duelists[s.kicks.length % 2];
+const pkKeeper = (s) => s.duelists[(s.kicks.length + 1) % 2];
+const pkGoals = (s, id) => s.kicks.filter((k) => k.shooter === id && k.goal).length;
+const pkDecided = (s) => {
+  const n = s.kicks.length;
+  if (n < 2 * PK_EACH || n % 2) return false;
+  const [a, b] = s.duelists;
+  return pkGoals(s, a) !== pkGoals(s, b) || n >= PK_MAX;
+};
+const pkWinner = (s) => {
+  if (s.forfeit) return s.duelists.find((id) => id !== s.forfeit) ?? null;
+  const [a, b] = s.duelists;
+  const ga = pkGoals(s, a);
+  const gb = pkGoals(s, b);
+  return ga === gb ? null : ga > gb ? a : b;
 };
 export const penaltyKicks = {
   id: 'penalty-kicks',
@@ -114,73 +133,101 @@ export const penaltyKicks = {
   kind: 'chaos',
   isNew: true,
   minPlayers: 2,
-  durationMs: PK_ROUNDS * (PK_CHOOSE + PK_REVEAL) + 3000,
-  tagline: 'شوط. واتنطّط. وخمّن.',
-  howTo: 'في كل جولة إنت بتشوط على حارس، وفي نفس الوقت إنت حارس لحد تاني. اختار هتشوط فين (يمين، نص، شمال) وهتنط فين. لو الحارس نط في نفس اتجاه الشوطة يصدّها، غير كده تبقى جون. ٣ جولات.',
-  rule: 'كل جون بنقطة وكل صدّة بنقطة. الأعلى ياخد ٣، واللي بعده ٢، والأقل ياخد صفر.',
-  setup: (ctx) => ({ order: shuffle(ctx.rng, ctx.players.map((p) => p.id)), round: 0, stage: 'choose', until: null, shots: {}, dives: {}, last: [], goals: {}, saves: {} }),
+  durationMs: PK_MAX * (PK_CHOOSE + PK_REVEAL) + 3000,
+  tagline: 'واحد قصاد واحد. شوط ونُط.',
+  howTo: 'لو عليك الدور: اختار في السر هتشوط فين، أو هتنط فين لو انت الحارس، والشوطة بتظهر على الموبايلين في نفس اللحظة. ماتش بين اتنين، وكل واحد بيشوط ٣ مرات بالتبادل. الباقي بيتوقّع مين هيكسب.',
+  rule: 'اللي يجيب أجوان أكتر ياخد ٢، واللي توقّع الكسبان صح ياخد ١.',
+  details: 'لو اتعادلوا بعد ٣ شوطات: ضربة قصاد ضربة لحد ما واحد يسبق (لحد شوطتين زيادة لكل واحد). لو فضلوا متعادلين، الاتنين ياخدوا ١. الحارس اللي ينط في اتجاه الشوطة يصدّها، والشوّاط اللي ما يختارش شوطته بتضيع. التوقّع بيقفل أول ما أول شوطة تتشاط.',
+  setup: (ctx) => ({ duelists: shuffle(ctx.rng, ctx.players.map((p) => p.id)).slice(0, 2), stage: 'choose', until: null, shot: null, dive: null, kicks: [], bets: {}, forfeit: null }),
   onTick(s, ctx) {
+    if (s.stage === 'done') return s;
+    const gone = s.duelists.find((id) => !has(ctx, id));
+    if (gone) return { ...s, stage: 'done', until: null, forfeit: gone };
     if (s.until === null) return { ...s, until: ctx.now + PK_CHOOSE };
-    const everyone = s.order.filter((id) => has(ctx, id));
-    if (s.stage === 'choose' && (ctx.now >= s.until || everyone.every((id) => id in s.shots && id in s.dives))) {
-      const goals = { ...s.goals };
-      const saves = { ...s.saves };
-      const last = s.order.map((shooter) => {
-        const keeper = targetOf(s, shooter, s.round);
-        const shot = s.shots[shooter] ?? null;
-        const dive = s.dives[keeper] ?? null;
-        const goal = shot !== null && dive !== shot;
-        if (goal) goals[shooter] = (goals[shooter] ?? 0) + 1;
-        else if (shot !== null) saves[keeper] = (saves[keeper] ?? 0) + 1;
-        return { shooter, keeper, shot, dive, goal };
-      });
-      return { ...s, stage: 'reveal', until: ctx.now + PK_REVEAL, last, goals, saves };
+    if (s.stage === 'choose' && ((s.shot !== null && s.dive !== null) || ctx.now >= s.until)) {
+      const kick = { shooter: pkShooter(s), keeper: pkKeeper(s), shot: s.shot, dive: s.dive, goal: s.shot !== null && s.dive !== s.shot };
+      return { ...s, stage: 'reveal', until: ctx.now + PK_REVEAL, shot: null, dive: null, kicks: [...s.kicks, kick] };
     }
     if (s.stage === 'reveal' && ctx.now >= s.until) {
-      if (s.round + 1 >= PK_ROUNDS) return { ...s, stage: 'done', until: null };
-      return { ...s, stage: 'choose', round: s.round + 1, until: ctx.now + PK_CHOOSE, shots: {}, dives: {}, last: [] };
+      if (pkDecided(s)) return { ...s, stage: 'done', until: null };
+      return { ...s, stage: 'choose', until: ctx.now + PK_CHOOSE };
     }
     return s;
   },
   onInput(s, pid, inp) {
-    if (s.stage !== 'choose' || !s.order.includes(pid) || !DIRS.includes(inp.payload)) return s;
-    if (inp.type === 'shoot' && !(pid in s.shots)) return { ...s, shots: { ...s.shots, [pid]: inp.payload } };
-    if (inp.type === 'dive' && !(pid in s.dives)) return { ...s, dives: { ...s.dives, [pid]: inp.payload } };
+    if (inp.type === 'bet') {
+      const ok = !s.duelists.includes(pid) && !s.kicks.length && s.stage !== 'done' && s.duelists.includes(String(inp.payload));
+      return ok ? { ...s, bets: { ...s.bets, [pid]: String(inp.payload) } } : s;
+    }
+    if (s.stage !== 'choose' || !DIRS.includes(inp.payload)) return s;
+    if (inp.type === 'shoot' && pid === pkShooter(s) && s.shot === null) return { ...s, shot: inp.payload };
+    if (inp.type === 'dive' && pid === pkKeeper(s) && s.dive === null) return { ...s, dive: inp.payload };
     return s;
   },
   isComplete: (s) => s.stage === 'done',
   resolve(s, ctx) {
-    const score = (id) => (s.goals[id] ?? 0) + (s.saves[id] ?? 0);
-    const rows = ctx.players.map((p) => ({ id: p.id, status: 'ok', primary: score(p.id), facts: { g: s.goals[p.id] ?? 0, sv: s.saves[p.id] ?? 0 } }));
-    const r = rank(rows, { better: 'higher', allTied: 'nobody' });
-    const w = r.winners;
+    const [a, b] = s.duelists;
+    const w = pkWinner(s);
+    const draw = !w;
+    const fans = ctx.players.filter((p) => !s.duelists.includes(p.id));
+    const rightFans = fans.filter((p) => w && s.bets[p.id] === w).map((p) => p.id);
+    const points = {};
+    for (const p of ctx.players) {
+      if (s.duelists.includes(p.id)) points[p.id] = draw ? 1 : p.id === w ? 2 : 0;
+      else points[p.id] = rightFans.includes(p.id) ? 1 : 0;
+    }
+    const winners = [...(draw ? s.duelists : [w]), ...rightFans].filter((id) => has(ctx, id));
+    const losers = ctx.players.map((p) => p.id).filter((id) => !winners.includes(id));
+    const score = `${pkGoals(s, a)}–${pkGoals(s, b)}`;
+    const headline = s.forfeit
+      ? `⚽ الماتش لـ${nameOf(ctx.players, w)} (الخصم خرج من السهرة)`
+      : draw
+        ? `🤝 تعادل ${score} حتى بعد الضربات الزيادة`
+        : `⚽ الماتش لـ${nameOf(ctx.players, w)} (${score})`;
     return {
-      headline: w.length ? `⚽ ${w.map((id) => nameOf(ctx.players, id)).join(' و')} — ${score(w[0])} من ${PK_ROUNDS * 2}` : 'تعادل! محدش اتفوّق.',
-      ...r,
-      points: pointsFrom(r.rows, r.winners, r.losers),
+      headline,
+      winners,
+      losers,
+      points,
       table: {
         layout: 'list',
-        cols: ['أجوان', 'صدّات', 'المجموع'],
-        rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: String(x.primary), cells: [String(x.facts.g), String(x.facts.sv)] })),
+        rows: [
+          ...s.duelists.filter((id) => has(ctx, id)).map((id) => ({ id, mark: '⚽', value: `${pkGoals(s, id)} جون`, why: 'الماتش' })),
+          ...fans.map((p) => {
+            const bet = s.bets[p.id];
+            const right = rightFans.includes(p.id);
+            return { id: p.id, mark: right ? '✓' : '✗', value: bet ? (right ? 'صح' : 'غلط') : 'من غير توقّع', why: bet ? `توقّع ${nameOf(ctx.players, bet)}` : undefined };
+          }),
+        ],
       },
     };
   },
   view: (s, pid) => {
-    const inGame = s.order.includes(pid);
-    const shooter = inGame ? s.order.find((id) => targetOf(s, id, s.round) === pid) : null;
+    const shooter = pkShooter(s);
+    const keeper = pkKeeper(s);
+    const role = s.stage !== 'choose' ? null : pid === shooter ? 'shooter' : pid === keeper ? 'keeper' : null;
+    const betCounts = Object.fromEntries(s.duelists.map((id) => [id, Object.values(s.bets).filter((x) => x === id).length]));
     return {
       stage: s.stage,
-      round: s.round + 1,
-      rounds: PK_ROUNDS,
       until: s.until,
-      target: inGame ? targetOf(s, pid, s.round) : null,
+      duelists: s.duelists,
       shooter,
-      myShot: s.shots[pid] ?? null,
-      myDive: s.dives[pid] ?? null,
-      ready: s.order.filter((id) => id in s.shots && id in s.dives),
-      last: s.stage === 'reveal' ? s.last : [],
-      goals: s.goals,
-      saves: s.saves,
+      keeper,
+      role,
+      kickNo: s.kicks.length + (s.stage === 'choose' ? 1 : 0),
+      sudden: s.kicks.length >= 2 * PK_EACH,
+      each: PK_EACH,
+      // each player only ever sees their own pick until the kick is revealed
+      myPick: role === 'shooter' ? s.shot : role === 'keeper' ? s.dive : null,
+      shotLocked: s.shot !== null,
+      diveLocked: s.dive !== null,
+      kicks: s.kicks,
+      last: s.stage === 'reveal' ? s.kicks[s.kicks.length - 1] : null,
+      goals: Object.fromEntries(s.duelists.map((id) => [id, pkGoals(s, id)])),
+      myBet: s.bets[pid] ?? null,
+      betsOpen: !s.kicks.length && s.stage === 'choose' && !s.duelists.includes(pid),
+      betCounts,
+      forfeit: s.forfeit,
     };
   },
 };
@@ -200,8 +247,9 @@ export const whoSaidIt = {
   minPlayers: 3,
   durationMs: WS_WRITE + WS_MAX * (WS_GUESS + WS_REVEAL) + 4000,
   tagline: 'جاوب عن نفسك. وخمّن مين كتب إيه.',
-  howTo: 'هيظهر سؤال عنك، اكتب إجابتك. بعدين الإجابات هتظهر واحدة واحدة من غير أسماء، وكل واحد يخمّن مين اللي كتبها.',
-  rule: 'كل تخمين صح بنقطة، وكل حد ما عرفش إجابتك بنقطة ليك. الأعلى ياخد ٣، واللي بعده ٢، والأقل ياخد صفر.',
+  howTo: 'جاوب على السؤال عن نفسك. بعدين الإجابات هتظهر من غير أسامي، وخمّن مين كتب كل واحدة.',
+  rule: 'الأعلى ياخد ٣، واللي بعده ٢، والأقل صفر.',
+  details: 'كل تخمين صح بنقطة، وكل حد ما عرفش إجابتك بنقطة ليك.',
   setup: (ctx) => ({ prompt: pickFresh(ctx, WHO_SAID).text, stage: 'write', until: null, answers: {}, queue: [], idx: 0, guesses: {}, score: {} }),
   onTick(s, ctx) {
     if (s.until === null) return { ...s, until: ctx.now + WS_WRITE };
@@ -242,7 +290,7 @@ export const whoSaidIt = {
     const rows = ctx.players.map((p) => ({ id: p.id, status: 'ok', primary: s.score[p.id] ?? 0 }));
     const r = rank(rows, { better: 'higher', allTied: 'nobody' });
     return {
-      headline: s.queue.length < 2 ? 'محدش كتب كفاية. الجولة دي من غير نقط.' : r.winners.length ? `🗣️ ${r.winners.map((id) => nameOf(ctx.players, id)).join(' و')} أشطر واحد في السهرة` : 'تعادل!',
+      headline: s.queue.length < 2 ? 'محدش كتب كفاية. الجولة دي من غير نقط.' : r.winners.length ? `🗣️ أشطر واحد في السهرة: ${r.winners.map((id) => nameOf(ctx.players, id)).join(' و')}` : 'تعادل!',
       ...(s.queue.length < 2 ? { winners: [], losers: [], rows: [] } : r),
       points: s.queue.length < 2 ? {} : pointsFrom(r.rows, r.winners, r.losers),
       reveal: { label: 'السؤال', value: s.prompt },

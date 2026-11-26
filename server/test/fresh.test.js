@@ -69,44 +69,118 @@ test('number rush: tapping 1..12 in order wins; a wrong tap costs time', () => {
   assert.deepEqual(r.lastResult.deductions, {});
 });
 
-test('penalty kicks: goals and saves add up over 3 rounds', () => {
-  for (const n of [2, 3]) {
-    const { r, ps } = room(n);
-    run(r, 'penalty-kicks');
-    let now = 10;
-    const s0 = r.game.state;
-    for (let round = 0; round < 3; round++) {
-      const s = r.game.state;
-      // everyone shoots right; the first player in the order dives right (saves), the rest dive left
-      for (const id of s.order) {
-        r.input(id, { type: 'shoot', payload: 'right' }, now);
-        r.input(id, { type: 'dive', payload: id === s0.order[0] ? 'right' : 'left' }, now);
-        r.input(id, { type: 'shoot', payload: 'left' }, now); // a second choice is ignored
-      }
-      r.tick((now += 100));
-      assert.equal(r.game.state.stage, 'reveal');
-      r.tick((now += 4100));
-    }
-    if (r.phase === 'playing') r.tick((now += 100));
-    assert.equal(r.phase, 'briefing', `n=${n}`);
-    const keeper = s0.order[0];
-    // the keeper saved one shot per round and scored on everyone except
-    const score = (id) => (r.lastResult.table.rows.find((x) => x.id === id).value | 0);
-    assert.equal(score(keeper), 3 + 3); // 3 saves + 3 goals (nobody else dives right)
-    assert.ok(ps.every((p) => Number.isFinite(r.lastResult.points[p.id])));
-    assert.ok(r.lastResult.winners.includes(keeper));
-  }
-});
+// penalty kicks: one match per round, turns alternate, picks secret until both lock
+const pkSides = (r) => {
+  const s = r.game.state;
+  return { shooter: s.duelists[s.kicks.length % 2], keeper: s.duelists[(s.kicks.length + 1) % 2] };
+};
+// plays one kick; shot/dive null means that side never picks (the timer runs out)
+const pkKick = (r, shot, dive, now) => {
+  const { shooter, keeper } = pkSides(r);
+  if (shot) r.input(shooter, { type: 'shoot', payload: shot }, now);
+  if (dive) r.input(keeper, { type: 'dive', payload: dive }, now);
+  r.tick(now + (shot && dive ? 50 : 8100));
+  assert.equal(r.game.state.stage, 'reveal');
+  const t = now + (shot && dive ? 50 : 8100) + 3600;
+  r.tick(t);
+  return t + 10;
+};
 
-test('penalty kicks: no shot is no goal, no dive is no save', () => {
+test('penalty kicks: one match, turns alternate, a pick stays secret until both lock in', () => {
   const { r, ps } = room(2);
   run(r, 'penalty-kicks');
-  r.input(ps[0].id, { type: 'shoot', payload: 'middle' }, 20);
-  r.tick(10 + 9100); // time runs out
-  const last = r.game.state.last;
-  assert.equal(last.find((k) => k.shooter === ps[0].id).goal, true); // keeper never dived
-  assert.equal(last.find((k) => k.shooter === ps[1].id).goal, false); // never shot
-  assert.equal(r.game.state.saves[ps[0].id] ?? 0, 0);
+  const s0 = r.game.state;
+  assert.deepEqual([...s0.duelists].sort(), ps.map((p) => p.id).sort());
+  const { shooter, keeper } = pkSides(r);
+  r.input(keeper, { type: 'shoot', payload: 'left' }, 20); // the keeper can't shoot
+  r.input(shooter, { type: 'dive', payload: 'left' }, 20); // the shooter can't dive
+  r.input(shooter, { type: 'shoot', payload: 'right' }, 20);
+  r.input(shooter, { type: 'shoot', payload: 'left' }, 21); // a second pick is ignored
+  r.tick(30);
+  assert.equal(r.game.state.stage, 'choose', 'waits for the keeper');
+  const keeperView = getGame('penalty-kicks').view(r.game.state, keeper, {});
+  assert.ok(!JSON.stringify(keeperView).includes('right'), 'the keeper cannot see the shot');
+  assert.equal(keeperView.shotLocked, true);
+  r.input(keeper, { type: 'dive', payload: 'right' }, 40);
+  r.tick(50);
+  const k = r.game.state.kicks[0];
+  assert.deepEqual([k.shooter, k.shot, k.dive, k.goal], [shooter, 'right', 'right', false]);
+  r.tick(50 + 3600);
+  assert.equal(pkSides(r).shooter, keeper, 'roles swap for the next kick');
+});
+
+test('penalty kicks: more goals after 3 each wins 2; fans who called it before the first kick get 1', () => {
+  const { r, ps } = room(4);
+  run(r, 'penalty-kicks');
+  const [a, b] = r.game.state.duelists;
+  const [early, late] = ps.map((p) => p.id).filter((id) => id !== a && id !== b);
+  r.input(early, { type: 'bet', payload: a }, 15);
+  r.input(a, { type: 'bet', payload: a }, 15); // players in the match can't bet
+  let now = 20;
+  now = pkKick(r, 'left', 'right', now); // a scores
+  r.input(late, { type: 'bet', payload: a }, now); // too late: the first kick is taken
+  for (let i = 0; i < 5; i++) now = pkKick(r, 'left', pkSides(r).shooter === a ? 'right' : 'left', now); // a always scores, b never
+  if (r.phase === 'playing') r.tick(now + 100);
+  assert.equal(r.phase, 'briefing');
+  assert.equal(r.lastResult.points[a], 2);
+  assert.equal(r.lastResult.points[b], 0);
+  assert.equal(r.lastResult.points[early], 1);
+  assert.equal(r.lastResult.points[late], 0);
+  assert.match(r.lastResult.headline, /3–0|0–3/);
+});
+
+test('penalty kicks: a tie goes to extra kicks; still tied after them, both get 1', () => {
+  const { r } = room(2);
+  run(r, 'penalty-kicks');
+  const [a, b] = r.game.state.duelists;
+  let now = 20;
+  for (let i = 0; i < 6; i++) now = pkKick(r, 'middle', 'middle', now); // every kick saved: 0–0
+  assert.equal(r.phase, 'playing', 'tied after 3 each: extra kicks');
+  assert.equal(r.game.state.stage, 'choose');
+  for (let i = 0; i < 4; i++) now = pkKick(r, 'middle', 'middle', now);
+  if (r.phase === 'playing') r.tick(now + 100);
+  assert.equal(r.phase, 'briefing');
+  assert.equal(r.lastResult.points[a], 1);
+  assert.equal(r.lastResult.points[b], 1);
+  assert.match(r.lastResult.headline, /تعادل/);
+});
+
+test('penalty kicks: extra kicks stop as soon as a pair is decided', () => {
+  const { r } = room(2);
+  run(r, 'penalty-kicks');
+  const [a, b] = r.game.state.duelists;
+  let now = 20;
+  for (let i = 0; i < 6; i++) now = pkKick(r, 'middle', 'middle', now);
+  now = pkKick(r, 'left', 'right', now); // a scores in extra time
+  now = pkKick(r, 'left', 'left', now); // b is saved
+  if (r.phase === 'playing') r.tick(now + 100);
+  assert.equal(r.phase, 'briefing');
+  assert.equal(r.lastResult.points[a], 2);
+  assert.equal(r.lastResult.points[b], 0);
+});
+
+test('penalty kicks: no shot is a miss, no dive lets a shot in', () => {
+  const { r } = room(2);
+  run(r, 'penalty-kicks');
+  pkKick(r, null, 'left', 20); // shooter never picks
+  assert.equal(r.game.state.kicks[0].goal, false);
+  const { r: r2 } = room(2);
+  run(r2, 'penalty-kicks');
+  pkKick(r2, 'left', null, 20); // keeper never picks
+  assert.equal(r2.game.state.kicks[0].goal, true);
+});
+
+test('penalty kicks: if a player in the match is removed, the other wins and the round ends', () => {
+  const { r } = room(3);
+  run(r, 'penalty-kicks');
+  const [a, b] = r.game.state.duelists;
+  r.kick('display', pkSides(r).shooter); // the one whose turn it is
+  const stayed = pkSides(r).shooter === a ? b : a;
+  r.tick(100);
+  if (r.phase === 'playing') r.tick(200);
+  assert.equal(r.phase, 'briefing');
+  assert.equal(r.lastResult.points[stayed], 2);
+  assert.match(r.lastResult.headline, /خرج/);
 });
 
 test('who said it: anonymous answers, guesses score for guessers and authors', () => {

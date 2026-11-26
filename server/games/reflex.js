@@ -2,7 +2,7 @@
 import { rank, pointsFrom } from '../lib/rank.js';
 import { nameOf, namesOf, pickOne, shuffle } from '../lib/util.js';
 
-const ms = (n) => `${n} م.ث`;
+const ms = (n) => `${n} ملّي ثانية`;
 const sec = (n, d = 1) => `${(n / 1000).toFixed(d)} ث`;
 const capMs = (v, max) => (v === -1 ? -1 : typeof v !== 'number' || !Number.isFinite(v) || v < 0 ? max : Math.min(Math.round(v), max));
 
@@ -17,8 +17,9 @@ export const tapRace = {
   durationMs: 12000,
   weight: 1.4,
   tagline: 'استنى الأخضر. آخر واحد يدوس ياخد صفر.',
-  howTo: 'الموبايل هيقلب أحمر. استنى… استنى… أول ما يقلب أخضر دوس بأسرع ما عندك. خلي بالك من الفلاشات الفشنك!',
-  rule: 'أبطأ واحد ياخد صفر. اللي يدوس بدري أو ما يدوسش خالص ياخد صفر برضه.',
+  howTo: 'دوس أول ما الشاشة تقلب أخضر. قبلها هتشوف أحمر وفلاشات خدعة: ما تدوسش عليهم.',
+  rule: 'الأبطأ ياخد صفر.',
+  details: 'اللي يدوس بدري أو ما يدوسش خالص ياخد صفر برضه.',
   setup(ctx) {
     const delayMs = 1800 + Math.floor(ctx.rng() * 3500);
     const fakeouts = ctx.rng() < 0.5 ? [Math.floor(delayMs * (0.3 + ctx.rng() * 0.4))] : [];
@@ -43,10 +44,10 @@ export const tapRace = {
     const r = rank(rows, { better: 'lower' });
     const first = r.winners[0];
     return {
-      headline: first ? `${nameOf(ctx.players, first)} كان الأسرع (${ms(s.taps[first])})` : r.rows.some((x) => x.status === 'foul') ? 'كله داس بدري!' : 'محدش داس. كله ياخد صفر!',
+      headline: first ? `الأسرع: ${nameOf(ctx.players, first)} (${ms(s.taps[first])})` : r.rows.some((x) => x.status === 'foul') ? 'كله داس بدري!' : 'محدش داس. كله ياخد صفر!',
       ...r,
       points: pointsFrom(r.rows, r.winners, r.losers),
-      table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? ms(x.primary) : x.status === 'foul' ? '⚡ بدري' : '—', why: x.status === 'out' ? 'ما داسش' : undefined })) },
+      table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? ms(x.primary) : x.status === 'foul' ? '⚡ بدري' : '—', why: x.status === 'out' ? 'من غير دوس' : undefined })) },
     };
   },
   view(s, pid) {
@@ -71,8 +72,9 @@ export const tapFrenzy = {
   minPlayers: 2,
   durationMs: FRENZY + 1500,
   tagline: 'ست ثواني. افرم الزرار.',
-  howTo: 'أول ما تبدأ، دوس على الزرار الكبير أكتر عدد مرات تقدر عليه لمدة ٦ ثواني. استخدم كل صوابعك.',
-  rule: 'أقل واحد داس ياخد صفر. لو تعادل: اللي وصل للرقم ده متأخر.',
+  howTo: 'دوس على الزرار الكبير أكتر عدد مرات تقدر عليه في ٦ ثواني. استخدم كل صوابعك.',
+  rule: 'أقل عدد دوسات ياخد صفر.',
+  details: 'لو فيه تعادل، اللي وصل للرقم ده متأخر ياخد صفر.',
   setup: () => ({ startAt: null, counts: {}, lastAt: {} }),
   onTick: (s, ctx) => (s.startAt === null ? { ...s, startAt: ctx.now } : s),
   onInput(s, pid, inp, ctx) {
@@ -87,7 +89,7 @@ export const tapFrenzy = {
     const r = rank(rows, { better: 'higher', allTied: best > 0 ? 'nobody' : 'everyone' });
     const winners = best > 0 ? r.winners : [];
     return {
-      headline: best === 0 ? 'محدش داس خالص!' : winners.length ? `${nameOf(ctx.players, winners[0])} فرم ${best} دوسة 🔥` : `تعادل! كله فرم ${best} دوسة 🔥`,
+      headline: best === 0 ? 'محدش داس خالص!' : winners.length ? `أعلى رقم: ${nameOf(ctx.players, winners[0])} — ${best} دوسة 🔥` : `تعادل! كله فرم ${best} دوسة 🔥`,
       ...r,
       winners,
       points: pointsFrom(r.rows, winners, r.losers),
@@ -109,8 +111,9 @@ export const dontLetGo = {
   minPlayers: 2,
   durationMs: GATHER + 15000 + GO_WINDOW,
   tagline: 'اثبت. وصباعك كمان.',
-  howTo: 'دوس واستمر دايس على الدايرة. فضل ماسك وسط الحركات الفشنك. أول ما يقولك «سيب!» ارفع صباعك بأسرع ما يمكن.',
-  rule: 'اللي يسيب بدري ياخد صفر. لو محدش اتهز، أبطأ واحد سابه ياخد صفر.',
+  howTo: 'دوس على الدايرة وخليك ماسك. أول ما تشوف «سيب!» ارفع صباعك بسرعة. أي حركة قبلها خدعة.',
+  rule: 'اللي يسيب بدري ياخد صفر.',
+  details: 'لو محدش ساب بدري، أبطأ صباع اترفع ياخد صفر.',
   setup: () => ({ stage: 'gather', gatherUntil: null, goAt: null, fakeouts: [], holding: {}, out: {}, releaseMs: {} }),
   onTick(s, ctx) {
     if (s.gatherUntil === null) return { ...s, gatherUntil: ctx.now + GATHER };
@@ -153,7 +156,7 @@ export const dontLetGo = {
     const names = namesOf(ctx.players, r.losers);
     const winners = r.winners.filter((id) => Number.isFinite(r.rows.find((x) => x.id === id).primary));
     return {
-      headline: cracked ? `${names} اتهزوا 😬` : `أعصاب حديد! ${names} كان الأبطأ في السيبان`,
+      headline: cracked ? `اتهزوا: ${names} 😬` : `أعصاب حديد! الأبطأ في السيبان: ${names}`,
       ...r,
       winners,
       points: pointsFrom(r.rows, winners, r.losers),
@@ -162,7 +165,7 @@ export const dontLetGo = {
         rows: r.rows.map((x) => ({
           id: x.id,
           place: x.place,
-          value: x.status === 'out' ? (x.facts.out === 'early' ? '😬 ساب بدري' : 'ما مسكش') : Number.isFinite(x.primary) ? ms(x.primary) : '✋ فضل ماسك',
+          value: x.status === 'out' ? (x.facts.out === 'early' ? '😬 سيبان بدري' : 'من غير مسكة') : Number.isFinite(x.primary) ? ms(x.primary) : '✋ فضل ماسك',
         })),
       },
     };
@@ -190,8 +193,9 @@ export const stopAtTen = {
   minPlayers: 2,
   durationMs: 22000,
   tagline: 'عِد لعشرة. وانت مغمّض.',
-  howTo: 'ساعة إيقاف هتشتغل على موبايلك وتختفي بعد ٣ ثواني. دوس «وقّف» لما تحس إن عدّى ١٠٫٠٠ ثانية بالظبط.',
-  rule: 'أبعد واحد عن ١٠ ثواني ياخد صفر. لو تعادل: اللي وقّف متأخر.',
+  howTo: 'دوس «وقّف» لما تحس إن ١٠ ثواني عدّوا بالظبط. العدّاد هيختفي من موبايلك بعد ٣ ثواني، فعِدّ في دماغك.',
+  rule: 'أبعد واحد عن ١٠ ثواني ياخد صفر.',
+  details: 'لو فيه تعادل، اللي وقّف متأخر ياخد صفر.',
   setup: () => ({ startAt: null, stops: {} }),
   onTick: (s, ctx) => (s.startAt === null ? { ...s, startAt: ctx.now } : s),
   onInput(s, pid, inp, ctx) {
@@ -206,13 +210,13 @@ export const stopAtTen = {
     const r = rank(rows, { better: 'lower', allTied: 'everyone', deadHeat: 'primary' });
     const w = r.winners[0];
     return {
-      headline: w ? `${nameOf(ctx.players, w)} وقّف عند ${sec(s.stops[w], 2)} 🎯` : 'محدش وقّف الساعة!',
+      headline: w ? `الأقرب: ${nameOf(ctx.players, w)} — ${sec(s.stops[w], 2)} 🎯` : 'محدش وقّف الساعة!',
       ...r,
       points: pointsFrom(r.rows, r.winners, r.losers),
       reveal: { label: 'الهدف', value: '١٠٫٠٠ ث' },
       table: {
         layout: 'list',
-        rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? `±${sec(x.primary, 2)}` : '⏱ ما وقّفش', why: x.status === 'ok' ? `وقّف عند ${sec(x.facts.stop, 2)}` : undefined })),
+        rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? `±${sec(x.primary, 2)}` : '⏱ الساعة ما وقفتش', why: x.status === 'ok' ? `الساعة عند ${sec(x.facts.stop, 2)}` : undefined })),
       },
     };
   },
@@ -229,8 +233,9 @@ export const quickDraw = {
   minPlayers: 2,
   durationMs: 15000,
   tagline: 'اتنين بيتبارزوا. والباقي بيراهن.',
-  howTo: 'اتنين بيتبارزوا: استنوا كلمة «اسحب!» وبعدين دوس الأول. الباقيين يراهنوا على الكسبان قبل السحب.',
-  rule: 'كسبان المبارزة ياخد ٢ واللي راهن صح ياخد ١. الأبطأ في المبارزة (أو اللي ضرب بدري) يتخصم منه نقطة، واللي راهن غلط أو ما راهنش ياخد صفر.',
+  howTo: 'لو انت في المبارزة: استنى «اسحب!» ودوس قبل خصمك. لو مش في المبارزة: راهن على الكسبان قبل «اسحب!».',
+  rule: 'كسبان المبارزة ياخد ٢، واللي راهن صح ياخد ١.',
+  details: 'الأبطأ في المبارزة، أو اللي داس قبل «اسحب!»، يتخصم منه نقطة. الرهان الغلط أو من غير رهان = صفر.',
   setup(ctx) {
     const ids = shuffle(ctx.rng, ctx.players.map((p) => p.id));
     return { duelists: ids.slice(0, 2), drawAt: null, drawn: false, shots: {}, bets: {} };
@@ -259,7 +264,7 @@ export const quickDraw = {
     const slow = early.length ? early : t(a) === t(b) ? [a, b] : [t(a) > t(b) ? a : b];
     const winners = s.duelists.filter((id) => !slow.includes(id));
     const losers = [...slow];
-    const deduct = Object.fromEntries(slow.map((id) => [id, s.shots[id] === -1 ? 'ضربت قبل «اسحب!»' : 'خسرت المبارزة']));
+    const deduct = Object.fromEntries(slow.map((id) => [id, s.shots[id] === -1 ? 'ضربة قبل «اسحب!»' : 'خسارة المبارزة']));
     for (const p of ctx.players) {
       if (s.duelists.includes(p.id)) continue;
       const bet = s.bets[p.id];
@@ -268,11 +273,11 @@ export const quickDraw = {
       }
     }
     const w = winners[0];
-    const shotTxt = (id) => (s.shots[id] === undefined ? '🔫 ما ضربش' : s.shots[id] < 0 ? '⚡ بدري' : ms(s.shots[id]));
+    const shotTxt = (id) => (s.shots[id] === undefined ? '🔫 من غير ضرب' : s.shots[id] < 0 ? '⚡ بدري' : ms(s.shots[id]));
     const points = Object.fromEntries(ctx.players.map((p) => [p.id, losers.includes(p.id) ? 0 : s.duelists.includes(p.id) ? 2 : 1]));
     return {
       deduct,
-      headline: w ? `🤠 ${nameOf(ctx.players, w)} كسب المبارزة${s.shots[w] >= 0 ? ` (${ms(s.shots[w])})` : ''}` : 'الاتنين باظوا المبارزة!',
+      headline: w ? `🤠 المبارزة لـ${nameOf(ctx.players, w)}${s.shots[w] >= 0 ? ` (${ms(s.shots[w])})` : ''}` : 'الاتنين باظوا المبارزة!',
       winners,
       losers,
       points,
@@ -285,7 +290,7 @@ export const quickDraw = {
             .map((p) => {
               const bet = s.bets[p.id];
               const right = bet && winners.includes(bet);
-              return { id: p.id, mark: right ? '✓' : '✗', value: bet ? (right ? 'صح' : 'غلط') : 'ما راهنش', why: bet ? `راهن على ${nameOf(ctx.players, bet)}` : undefined };
+              return { id: p.id, mark: right ? '✓' : '✗', value: bet ? (right ? 'صح' : 'غلط') : 'من غير رهان', why: bet ? `رهان على ${nameOf(ctx.players, bet)}` : undefined };
             }),
         ],
       },
@@ -318,8 +323,9 @@ export const whackAMole = {
   minPlayers: 2,
   durationMs: WHACK_LEAD + WHACK + 1500,
   tagline: 'اضرب الفيران. مش القنابل.',
-  howTo: 'فيران هتطلع من الخُرم على موبايلك لمدة ١٥ ثانية. اضرب كل واحد قبل ما يستخبى. لو ضربت قنبلة 💣 تخسر ٣ نقط.',
-  rule: 'أقل سكور ياخد صفر. لو تعادل: اللي وصل للسكور ده متأخر.',
+  howTo: 'اضرب كل فار يطلع على موبايلك قبل ما يستخبى، لمدة ١٥ ثانية. ما تضربش القنبلة 💣: بتشيل ٣ من سكورك.',
+  rule: 'أقل سكور ياخد صفر.',
+  details: 'لو فيه تعادل، اللي وصل للسكور ده متأخر ياخد صفر.',
   setup(ctx) {
     const moles = [];
     const busy = Array(9).fill(0);
@@ -359,7 +365,7 @@ export const whackAMole = {
     const r = rank(rows, best > 0 ? { better: 'higher' } : { better: 'higher', allTied: 'everyone', deadHeat: 'primary' });
     const winners = best > 0 ? r.winners : [];
     return {
-      headline: best <= 0 ? 'محدش جاب نقط!' : winners.length ? `${namesOf(ctx.players, winners)} ضرب ${best} 🔨` : `تعادل على ${best} 🔨`,
+      headline: best <= 0 ? 'محدش جاب نقط!' : winners.length ? `أعلى سكور: ${namesOf(ctx.players, winners)} — ${best} 🔨` : `تعادل على ${best} 🔨`,
       ...r,
       winners,
       points: pointsFrom(r.rows, winners, r.losers),
@@ -402,8 +408,9 @@ export const snap = {
   minPlayers: 2,
   durationMs: SNAP_LEAD + 21000,
   tagline: 'اتنين زي بعض؟ اخبط!',
-  howTo: 'كارتين بيتقلبوا ورا بعض. أول ما يطلعوا نفس الصورة، اخبط «خبطة!». فيه ٣ أزواج. لو خبطت على كروت مختلفة تخسر نقطة.',
-  rule: 'أقل نقط ياخد صفر. لو تعادل: الإيد الأبطأ.',
+  howTo: 'كل شوية هيظهر كارتين جنب بعض. لما الاتنين يبقوا نفس الصورة، دوس «خبطة!» بسرعة. هتحصل ٣ مرات بس.',
+  rule: 'أقل نقط ياخد صفر.',
+  details: 'لو خبطت والكارتين مختلفين، بتخسر نقطة من سكورك. لو فيه تعادل، الإيد الأبطأ تاخد صفر.',
   setup(ctx) {
     const set = pickOne(ctx.rng, SNAP_SETS);
     const pairAt = new Set();
@@ -455,11 +462,11 @@ export const snap = {
     const nobody = !r.winners.length && !r.losers.length;
     const winners = best <= 0 ? [] : nobody ? sc.map((x) => x.id) : r.winners;
     return {
-      headline: best > 0 ? `${nameOf(ctx.players, winners[0])} إيده أسرع واحد 🃏` : 'محدش خبط صح!',
+      headline: best > 0 ? `أسرع إيد: ${nameOf(ctx.players, winners[0])} 🃏` : 'محدش خبط صح!',
       ...r,
       winners,
       points: pointsFrom(r.rows, winners, r.losers),
-      table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: `${x.primary}`, why: x.facts.wrong ? `${x.facts.wrong}× غلط −1` : undefined })) },
+      table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: `${x.primary}`, why: x.facts.wrong ? `${x.facts.wrong} خبطة غلط · −${x.facts.wrong}` : undefined })) },
     };
   },
   view(s, pid, ctx) {

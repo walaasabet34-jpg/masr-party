@@ -119,6 +119,9 @@ test('server analytics: each lifecycle event once, refresh-safe, no personal dat
   await until(() => host.snap.phase === 'briefing');
   await sleep(300);
   host.emit('room:leave');
+  // the host hands over to the only phone still connected; the party ends when that one leaves too
+  await until(() => back2.snap?.hostId === back2.id);
+  back2.emit('room:leave');
   await until(() => named('party_ended').length === 2 && named('game_exited').length === 4);
   await sleep(400);
 
@@ -139,7 +142,7 @@ test('server analytics: each lifecycle event once, refresh-safe, no personal dat
   assert.equal(exits[aid(3)].exit_reason, 'kicked');
   assert.equal(exits[aid(1)].exit_reason, 'disconnected');
   assert.equal(exits[aid(0)].exit_reason, 'left');
-  assert.equal(exits[aid(2)].exit_reason, 'room_closed');
+  assert.equal(exits[aid(2)].exit_reason, 'left');
   assert.equal(exits[aid(0)].rounds_played, 2);
   assert.ok(exits[aid(0)].session_duration_ms > 0);
   // attribution: anonymous browser ids, linked to replay sessions, never person profiles

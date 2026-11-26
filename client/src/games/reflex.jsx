@@ -136,11 +136,11 @@ function DontLetGoPhone({ snap, v }) {
     holding.current = false;
     send('release');
   };
-  const msg = out === 'early' ? 'سبت بدري! ⭐' : out === 'nohold' ? 'ما مسكتش' : v.me.ms !== null ? `${v.me.ms} م.ث` : v.stage === 'go' ? 'سيب!' : fake ? 'لسه! 😈' : v.me.holding ? 'فضل ماسك…' : 'دوس وفضل دايس';
+  const msg = out === 'early' ? 'سيبت بدري 😬' : out === 'nohold' ? 'ما مسكتش الدايرة' : v.me.ms !== null ? `${v.me.ms} ملّي ثانية` : v.stage === 'go' ? 'سيب دلوقتي! 🚀' : fake ? 'لأ لسه! ما تسيبش 😈' : v.me.holding ? 'خليك ماسك ✋' : 'دوس هنا وخليك ماسك';
   const bg = out ? HEX.red : v.stage === 'go' ? HEX.lime : fake ? HEX.yellow : v.me.holding ? HEX.mint : '#fff';
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-5">
-      <div className="text-center font-display font-black text-3xl">{v.stage === 'gather' ? 'الكل يمسك الدايرة' : v.stage === 'hold' ? 'فضل ماسك' : ''}</div>
+      <div className="text-center font-display font-black text-3xl">{v.stage === 'gather' ? 'دوس على الدايرة وخليك ماسك' : v.stage === 'hold' ? 'ما تسيبش لحد ما يقولك «سيب!»' : ''}</div>
       <button type="button" onPointerDown={down} onPointerUp={up} onPointerCancel={up} onPointerLeave={up} onContextMenu={(e) => e.preventDefault()} className="relative flex h-72 w-72 items-center justify-center rounded-full border-[6px] border-black text-center font-display font-black text-3xl text-black shadow-hard" style={{ background: bg }}>
         {v.me.holding && !out && v.stage !== 'go' && <span className="pulse-ring absolute inset-0 rounded-full border-4 border-black" />}
         <span className="relative px-6">{msg}</span>

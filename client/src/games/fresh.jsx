@@ -125,70 +125,190 @@ const numberRush = {
 };
 
 // ---------------------------------------------------------------- ضربة جزاء
-const DIRS = [
+// The goal is drawn as seen from the penalty spot, so «يمين» means the same side on every phone.
+const PK_SIDES = [
+  ['left', '⬅️ شمال'],
+  ['middle', '⬆️ نص'],
   ['right', 'يمين ➡️'],
-  ['middle', 'نص ⬆️'],
-  ['left', 'شمال ⬅️'],
 ];
-const dirName = (d) => DIRS.find((x) => x[0] === d)?.[1] ?? '—';
-function DirButtons({ value, onPick }) {
+const PK_X = { left: -1, middle: 0, right: 1 };
+const sideName = (d) => ({ left: 'شمال', middle: 'النص', right: 'يمين' })[d] ?? '';
+const NET = {
+  backgroundImage: 'repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 2px, transparent 2px 16px), repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 2px, transparent 2px 16px)',
+  backgroundColor: 'rgba(0,0,0,.28)',
+};
+
+function PkGoal({ keeper, last, kickKey, pick, onPick, big }) {
+  const dive = last ? PK_X[last.dive ?? 'middle'] : 0;
   return (
-    <div className="grid grid-cols-3 gap-2">
-      {DIRS.map(([d, label]) => (
-        <button key={d} type="button" disabled={value !== null} onClick={() => (onPick(d), sfx.pop(), haptic.light())} className={`press rounded-2xl border-[3px] border-black py-4 font-display font-black text-lg ${value === d ? 'bg-lime text-black shadow-hard-sm' : value ? 'bg-black/30 opacity-50' : 'bg-white text-black'}`}>
-          {label}
+    <div className={`ltr relative mx-auto w-full ${big ? 'max-w-2xl' : 'max-w-sm'}`}>
+      <div className="relative aspect-[2.2/1] w-full overflow-hidden rounded-t-xl border-[6px] border-b-0 border-white" style={NET}>
+        <motion.div
+          key={`k${kickKey}`}
+          className="absolute bottom-1 flex flex-col items-center"
+          style={{ x: '-50%' }}
+          initial={{ left: '50%', rotate: 0 }}
+          animate={{ left: `${50 + dive * 32}%`, rotate: dive * 35 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 16, delay: last ? 0.15 : 0 }}
+        >
+          <Avatar p={keeper} size={big ? 72 : 48} />
+          <span className={big ? 'text-4xl' : 'text-2xl'}>🧤</span>
+        </motion.div>
+        {last?.shot && (
+          <motion.div
+            key={`b${kickKey}`}
+            className={`absolute ${big ? 'text-6xl' : 'text-4xl'}`}
+            style={{ x: '-50%' }}
+            initial={{ left: '50%', bottom: '-45%', scale: 1.7 }}
+            animate={{ left: `${50 + PK_X[last.shot] * 33}%`, bottom: last.goal ? '42%' : '22%', scale: 0.9 }}
+            transition={{ duration: 0.55, ease: 'easeOut' }}
+          >
+            ⚽
+          </motion.div>
+        )}
+        {onPick && (
+          <div className="absolute inset-0 grid grid-cols-3">
+            {PK_SIDES.map(([d, label]) => (
+              <button
+                key={d}
+                type="button"
+                disabled={pick !== null}
+                onClick={() => (onPick(d), sfx.pop(), haptic.light())}
+                className={`flex items-start justify-center border-x border-white/10 pt-2 font-display font-black text-white ${pick === d ? 'bg-lime/50' : pick ? 'opacity-30' : 'active:bg-white/20'}`}
+              >
+                <span className="rounded-full bg-black/60 px-2 py-0.5 text-sm">{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="h-2 rounded-b bg-white/30" />
+    </div>
+  );
+}
+
+function PkKeeperButtons({ pick, onPick }) {
+  return (
+    <div className="ltr grid grid-cols-3 gap-2">
+      {PK_SIDES.map(([d, label]) => (
+        <button
+          key={d}
+          type="button"
+          disabled={pick !== null}
+          onClick={() => (onPick(d), sfx.pop(), haptic.light())}
+          className={`press rounded-2xl border-[3px] border-black py-4 font-display font-black text-lg ${pick === d ? 'bg-lime text-black shadow-hard-sm' : pick ? 'bg-black/30 opacity-50' : 'bg-white text-black'}`}
+        >
+          🧤 {label}
         </button>
       ))}
     </div>
   );
 }
+
+function PkScore({ v, P, big }) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {v.duelists.map((id) => {
+        const mine = v.kicks.filter((k) => k.shooter === id);
+        const slots = Math.max(v.each, mine.length);
+        return (
+          <div key={id} className={`flex flex-col items-center gap-1 rounded-2xl bg-black/30 p-2 ${v.stage === 'choose' && v.shooter === id ? 'ring-2 ring-lime' : ''}`}>
+            <div className={`flex items-center gap-2 font-display font-black ${big ? 'text-3xl' : ''}`}>
+              <Avatar p={P[id]} size={big ? 48 : 26} />
+              <span className="max-w-[7rem] truncate">{P[id]?.name}</span>
+              <span className="text-lime">{v.goals[id] ?? 0}</span>
+            </div>
+            <div className={`flex gap-1 ${big ? 'text-3xl' : ''}`}>
+              {Array.from({ length: slots }, (_, i) => (
+                <span key={i}>{mine[i] ? (mine[i].goal ? '⚽' : '❌') : '⚪'}</span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+const pkTitle = (v) => (v.sudden ? 'ضربات زيادة ⚡' : `شوطة ${Math.min(v.kickNo || 1, v.each * 2)} من ${v.each * 2}`);
+const pkResult = (last) => (last.goal ? 'جوووون! ⚽' : last.shot ? 'الحارس صدّها! 🧤' : 'الشوطة ضاعت');
+
+function PkBets({ v, P }) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="text-center font-display font-black text-2xl">مين هيكسب الماتش؟</div>
+      <div className="grid grid-cols-2 gap-2">
+        {v.duelists.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => (send('bet', id), sfx.pop(), haptic.light())}
+            className={`press flex flex-col items-center gap-1 rounded-2xl border-[3px] border-black p-3 font-display font-black ${v.myBet === id ? 'bg-lime text-black shadow-hard-sm' : 'bg-white text-black'}`}
+          >
+            <Avatar p={P[id]} size={44} />
+            {P[id]?.name}
+          </button>
+        ))}
+      </div>
+      <div className="text-center text-sm text-ink-muted">{v.myBet ? `توقّعك: ${P[v.myBet]?.name} ✓ (تقدر تغيّره لحد أول شوطة)` : 'التوقّع بيقفل أول ما أول شوطة تتشاط'}</div>
+    </div>
+  );
+}
+
 const penaltyKicks = {
   Phone: ({ snap, v }) => {
     const P = playerMap(snap);
     const me = snap.me;
-    if (!v.target) return <Waiting text="بتتفرج على الماتش ⚽" />;
-    const total = (v.goals[me] ?? 0) + (v.saves[me] ?? 0);
+    let body;
+    if (v.stage === 'done') body = <Waiting text={v.forfeit ? 'الماتش خلص: الخصم خرج من السهرة' : 'الماتش خلص! ⚽'} />;
+    else if (v.stage === 'reveal' && v.last)
+      body = (
+        <>
+          <PkGoal keeper={P[v.last.keeper]} last={v.last} kickKey={v.kicks.length} />
+          <Prompt color={v.last.goal ? 'lime' : 'red'}>{pkResult(v.last)}</Prompt>
+          <div className="text-center text-ink-muted">
+            الشوطة: {v.last.shot ? sideName(v.last.shot) : '—'} · الحارس: {v.last.dive ? sideName(v.last.dive) : 'ما نطّش'}
+          </div>
+        </>
+      );
+    else if (v.role === 'shooter')
+      body = (
+        <>
+          <div className="text-center font-display font-black text-2xl">⚽ دورك تشوط! دوس على الزاوية</div>
+          <div className="text-center text-ink-muted">الحارس: {P[v.keeper]?.name}</div>
+          <PkGoal keeper={P[v.keeper]} kickKey={v.kicks.length} pick={v.myPick} onPick={(d) => send('shoot', d)} />
+          {v.myPick && <Sent>{`هتشوط ${sideName(v.myPick)} ✓ ${v.diveLocked ? 'والحارس اختار…' : 'مستنيين الحارس'}`}</Sent>}
+        </>
+      );
+    else if (v.role === 'keeper')
+      body = (
+        <>
+          <div className="text-center font-display font-black text-2xl">🧤 انت الحارس! هتنط فين؟</div>
+          <div className="text-center text-ink-muted">
+            اللي بيشوط: {P[v.shooter]?.name} · {v.shotLocked ? 'اختار ✓' : 'بيفكّر…'}
+          </div>
+          <PkGoal keeper={P[me]} kickKey={v.kicks.length} />
+          <PkKeeperButtons pick={v.myPick} onPick={(d) => send('dive', d)} />
+          {v.myPick && <Sent>{`هتنط ${sideName(v.myPick)} ✓`}</Sent>}
+        </>
+      );
+    else if (v.betsOpen) body = <PkBets v={v} P={P} />;
+    else
+      body = (
+        <>
+          <div className="text-center font-display font-black">
+            ⚽ {P[v.shooter]?.name} قصاد 🧤 {P[v.keeper]?.name}
+          </div>
+          <PkGoal keeper={P[v.keeper]} kickKey={v.kicks.length} />
+          <div className="text-center text-sm text-ink-muted">{v.myBet ? `توقّعك: ${P[v.myBet]?.name}` : 'ما توقّعتش المرة دي'}</div>
+        </>
+      );
     return (
-      <div className="flex flex-1 flex-col gap-4">
-        <div className="flex items-center justify-between font-display font-black">
-          <span>جولة {v.round} من {v.rounds}</span>
-          <span>⚽ {v.goals[me] ?? 0} · 🧤 {v.saves[me] ?? 0}</span>
-        </div>
-        <GameTimer snap={snap} until={v.until} total={v.stage === 'choose' ? 9000 : 4000} />
-        {v.stage === 'choose' && (
-          <>
-            <div className="rounded-3xl border-4 border-black bg-mint p-3 text-black">
-              <div className="mb-2 flex items-center gap-2 font-display font-black text-xl">
-                ⚽ هتشوط فين؟ <span className="text-base">(الحارس: {P[v.target]?.name})</span>
-              </div>
-              <DirButtons value={v.myShot} onPick={(d) => send('shoot', d)} />
-            </div>
-            <div className="rounded-3xl border-4 border-black bg-white p-3 text-black">
-              <div className="mb-2 flex items-center gap-2 font-display font-black text-xl">
-                🧤 هتنط فين؟ <span className="text-base">(بيشوط عليك: {P[v.shooter]?.name})</span>
-              </div>
-              <DirButtons value={v.myDive} onPick={(d) => send('dive', d)} />
-            </div>
-            {v.myShot && v.myDive && <Sent>تمام ✓ استنى الباقي</Sent>}
-          </>
-        )}
-        {v.stage === 'reveal' &&
-          (() => {
-            const mine = v.last.find((k) => k.shooter === me);
-            const onMe = v.last.find((k) => k.keeper === me);
-            return (
-              <div className="flex flex-col gap-3">
-                <Prompt color={mine?.goal ? 'lime' : 'red'}>{mine?.shot ? (mine.goal ? 'جوووون! ⚽' : 'الحارس صدّها 🧤') : 'ما شوطتش!'}</Prompt>
-                <div className="text-center text-ink-muted">
-                  شوطت {dirName(mine?.shot)} · الحارس نط {dirName(mine?.dive)}
-                </div>
-                <Prompt color={onMe?.shot && !onMe.goal ? 'lime' : 'white'} small>
-                  {!onMe?.shot ? 'اللي قصادك ما شوطش' : onMe.goal ? `${P[onMe.shooter]?.name} جاب فيك جون` : 'صدّيتها! 🧤'}
-                </Prompt>
-              </div>
-            );
-          })()}
-        <div className="mt-auto text-center font-display font-black text-ink-muted">مجموعك: {total}</div>
+      <div className="flex flex-1 flex-col gap-3">
+        <div className="text-center font-display font-black">{pkTitle(v)}</div>
+        {v.stage !== 'done' && <GameTimer snap={snap} until={v.until} total={v.stage === 'choose' ? 8000 : 3500} />}
+        <PkScore v={v} P={P} />
+        {body}
       </div>
     );
   },
@@ -196,29 +316,20 @@ const penaltyKicks = {
     const P = playerMap(snap);
     return (
       <div className="flex flex-1 flex-col gap-5">
-        <Prompt big color="mint">{v.stage === 'reveal' ? 'النتيجة ⚽' : `ضربة جزاء ⚽ جولة ${v.round} من ${v.rounds}`}</Prompt>
-        <GameTimer snap={snap} until={v.until} total={v.stage === 'choose' ? 9000 : 4000} />
-        {v.stage === 'choose' && <Done ids={v.ready} snap={snap} big label="اختاروا" />}
-        {v.stage === 'reveal' && (
-          <div className="grid grid-cols-2 gap-3">
-            {v.last.map((k) => (
-              <div key={k.shooter} className="flex items-center gap-3 rounded-2xl border-4 border-black bg-white p-3 text-black">
-                <Avatar p={P[k.shooter]} size={44} />
-                <span className="text-3xl">{k.goal ? '⚽' : '🧤'}</span>
-                <Avatar p={P[k.keeper]} size={44} />
-                <span className="font-display font-black">{k.goal ? 'جون!' : k.shot ? 'صدّها' : 'ما شوطش'}</span>
-              </div>
-            ))}
+        <Prompt big color="mint">{v.stage === 'reveal' && v.last ? pkResult(v.last) : `ضربة جزاء ⚽ ${pkTitle(v)}`}</Prompt>
+        {v.stage !== 'done' && <GameTimer snap={snap} until={v.until} total={v.stage === 'choose' ? 8000 : 3500} />}
+        <PkScore v={v} P={P} big />
+        <PkGoal keeper={P[v.stage === 'reveal' && v.last ? v.last.keeper : v.keeper]} last={v.stage === 'reveal' ? v.last : null} kickKey={v.kicks.length} big />
+        {v.stage === 'choose' && (
+          <div className="text-center font-display font-black text-3xl">
+            ⚽ {P[v.shooter]?.name} {v.shotLocked ? '✓' : '…'} · 🧤 {P[v.keeper]?.name} {v.diveLocked ? '✓' : '…'}
           </div>
         )}
-        <div className="flex flex-wrap justify-center gap-4">
-          {roster(snap).map((p) => (
-            <div key={p.id} className="flex flex-col items-center gap-1">
-              <Avatar p={p} size={56} />
-              <span className="font-display font-black">{(v.goals[p.id] ?? 0) + (v.saves[p.id] ?? 0)}</span>
-            </div>
-          ))}
-        </div>
+        {Object.values(v.betCounts).some(Boolean) && (
+          <div className="text-center text-xl text-ink-muted">
+            التوقّعات: {v.duelists.map((id) => `${P[id]?.name} ${v.betCounts[id] ?? 0}`).join(' · ')}
+          </div>
+        )}
       </div>
     );
   },
@@ -264,7 +375,7 @@ const whoSaidIt = {
           ))}
         {v.stage === 'reveal' && (
           <Prompt color={v.mine ? 'white' : v.myGuess === v.author ? 'lime' : 'red'}>
-            {v.mine ? 'دي كانت إجابتك 😎' : `${P[v.author]?.name} هو اللي قالها${v.myGuess === v.author ? ' ✓ عرفتها!' : ''}`}
+            {v.mine ? 'دي كانت إجابتك 😎' : `دي إجابة ${P[v.author]?.name}${v.myGuess === v.author ? ' ✓ عرفتها!' : ''}`}
           </Prompt>
         )}
       </div>
@@ -282,7 +393,7 @@ const whoSaidIt = {
         {v.stage === 'reveal' && v.author && (
           <div className="flex items-center justify-center gap-4">
             <Avatar p={P[v.author]} size={90} />
-            <span className="font-display font-black text-4xl">{P[v.author]?.name} هو اللي قالها!</span>
+            <span className="font-display font-black text-4xl">دي إجابة {P[v.author]?.name}!</span>
           </div>
         )}
       </div>
