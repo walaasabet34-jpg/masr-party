@@ -76,6 +76,7 @@ function base(room) {
     mode: room.settings.mode,
     host_surface: room.displayToken ? 'screen' : 'phone',
     player_count: room.players.filter((p) => p.connected).length,
+    missions_arm: room.settings.missionsArm ?? null,
   };
 }
 
@@ -129,6 +130,45 @@ export const roomCreated = safe((room, playerId, ids = {}) => {
   roomEvent(room, 'room_created', { player_count: room.players.length });
 });
 
+// ---- secret missions: the prank question ("المقلب ده اتعمل فيك؟")
+// What the asked player tried to tap FIRST is reported by their browser with the answer; only
+// these enum/number values are accepted, anything else is dropped.
+const TAP_TARGETS = ['yes', 'no', 'question', 'backdrop'];
+const ms = (v) => (Number.isFinite(v) && v >= 0 && v < 36e5 ? Math.round(v) : null);
+function cleanTap(t = {}) {
+  if (!t || typeof t !== 'object') return {};
+  return {
+    first_tap: TAP_TARGETS.includes(t.firstTap) ? t.firstTap : null,
+    first_tap_on_own_mission: typeof t.onOwnMission === 'boolean' ? t.onOwnMission : null,
+    first_tap_while_locked: typeof t.locked === 'boolean' ? t.locked : null,
+    ms_shown_to_first_tap: ms(t.msToFirstTap),
+    ms_shown_to_answer: ms(t.msToAnswer),
+    taps_before_answer: Number.isInteger(t.taps) && t.taps >= 0 && t.taps < 100 ? t.taps : null,
+    own_mission_card_open: typeof t.ownCardOpen === 'boolean' ? t.ownCardOpen : null,
+  };
+}
+
+export const missionClaimed = safe((room, claim) => {
+  if (!claim) return;
+  playerEvent(room, claim.from, 'mission_claim_created', {
+    claim_id: claim.id,
+    room_phase: room.phase,
+    target_has_open_mission: room.hasOpenMission(claim.target),
+  });
+});
+
+export const missionAnswered = safe((room, by, answer, tap) => {
+  if (!answer) return;
+  playerEvent(room, by, 'mission_claim_answered', {
+    claim_id: answer.claim.id,
+    answer: answer.yes ? 'yes' : 'no',
+    answerer_had_open_mission: answer.hadOpenMission,
+    ms_since_claim: answer.msSinceClaim,
+    room_phase: room.phase,
+    ...cleanTap(tap),
+  });
+});
+
 export const roomJoined = safe((room, player, ids = {}) => {
   remember(room, player.id, ids);
   playerEvent(room, player.id, 'room_joined', {
@@ -136,6 +176,10 @@ export const roomJoined = safe((room, player, ids = {}) => {
     joined_mid_game: !!player.late,
     player_count: room.players.length,
   });
+  // A late joiner must also enter the per-player funnel, even if the night has started.
+  if (info(room).nightStartedAt && player.connected) {
+    playerEvent(room, player.id, 'player_game_started', { late_join: true });
+  }
 });
 
 function exit(room, playerId, reason, now = Date.now()) {
@@ -186,6 +230,14 @@ export const observe = safe((room, cause = 'tick', now = Date.now()) => {
       missions: !!room.settings.missions,
       games_enabled: room.settings.enabledGames.length || 'all',
     });
+    // Room lifecycle events belong to the host. These separate events belong to
+    // each connected player so the visitor-to-player funnel isn't host-only.
+    for (const p of room.players) {
+      if (p.connected) playerEvent(room, p.id, 'player_game_started', {
+        late_join: false,
+        play_again: cause === 'room:playAgain',
+      });
+    }
     if (is === 'boat') {
       roomEvent(room, 'game_selected', { game_id: 'basra', game_name: 'Basra', game_kind: 'cards', round: 1 });
     }
@@ -218,6 +270,11 @@ export const observe = safe((room, cause = 'tick', now = Date.now()) => {
       winners_count: res.winners?.length ?? 0,
       deductions_count: Object.keys(res.deductions ?? {}).length,
     });
+    if (cause !== 'room:skipRound') {
+      for (const id of res.roster ?? []) {
+        playerEvent(room, id, 'player_round_completed', { game_id: res.gameId, round: res.round });
+      }
+    }
   }
   r.result = room.lastResult;
 
@@ -241,6 +298,14 @@ export const observe = safe((room, cause = 'tick', now = Date.now()) => {
         player_count: b.order.length,
         match_over: b.stage === 'over',
       });
+      for (const id of b.order) {
+        playerEvent(room, id, 'player_round_completed', { game_id: 'basra', round: b.hand });
+      }
+    }
+    // Basra is selected once per match but finishes multiple hands: track match
+    // completion separately, including a handOver -> over transition.
+    if (b.stage === 'over' && r.handStage !== 'over') {
+      roomEvent(room, 'basra_match_completed', { game_id: 'basra', hands_completed: r.roundsThisNight });
     }
     r.handStage = b.stage;
   } else {
