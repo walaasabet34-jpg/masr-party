@@ -80,10 +80,24 @@ test('only the host controls the room; kicked players cannot return; locked room
   assert.ok(r.addPlayer({ playerId: ps[2].id, token: ps[2].token }).player); // a known player can come back
 });
 
-test('phone host leaving closes the party', () => {
+test('phone host leaving hands the room to the longest-connected player', () => {
   const r = new Room('HOST');
   const host = r.addPlayer({ name: 'المضيف' }, { asHost: true }).player;
-  r.addPlayer({ name: 'ضيف' });
+  const first = r.addPlayer({ name: 'ضيف' }).player;
+  const second = r.addPlayer({ name: 'ضيف تاني' }).player;
+  for (const p of r.players) p.connected = true;
+  r.leave(host.id);
+  assert.equal(r.closed, null);
+  assert.equal(r.hostId, first.id);
+  assert.ok(r.canControl(first.id));
+  r.kick(first.id, second.id); // the new host really controls the room
+  assert.equal(r.player(second.id), undefined);
+});
+
+test('phone host leaving with nobody connected closes the party', () => {
+  const r = new Room('HST2');
+  const host = r.addPlayer({ name: 'المضيف' }, { asHost: true }).player;
+  r.addPlayer({ name: 'ضيف' }).player.connected = false;
   r.leave(host.id);
   assert.equal(r.closed, 'host_left');
 });

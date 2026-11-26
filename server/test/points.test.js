@@ -139,7 +139,7 @@ test('a normal loss scores 0 with no deduction; only stated worst cases cost 1, 
   r.nextGameId = 'most-likely-to'; r.startGame(1000);
   for (const p of ps) r.input(p.id, { type: 'vote', payload: ps[1].id }, 1100);
   r.tick(1200);
-  assert.deepEqual(r.lastResult.deductions[ps[1].id], { amount: 1, reason: 'خدت أكتر أصوات لوحدك' });
+  assert.deepEqual(r.lastResult.deductions[ps[1].id], { amount: 1, reason: 'أعلى أصوات لوحده' });
   assert.equal(r.lastResult.points[ps[1].id], -1);
   // a tie for most votes: nobody is deducted
   r.nextGameId = 'most-likely-to'; r.startGame(2000);
@@ -165,4 +165,59 @@ test('mission: +2 agent, −1 target, once, and only the target can confirm', ()
   r.answerClaim(target.id, id, true); // a repeat finds nothing
   assert.equal(agent.stats.points, 2);
   assert.equal(target.stats.points, -1);
+});
+
+const missionRoom = () => {
+  const r = new Room('MSN2'); r.displayToken = 'tv';
+  const [a, b, c] = ['منى', 'ريم', 'ولاء'].map((name) => r.addPlayer({ name }).player);
+  r.updateSettings('display', { missions: true, enabledGames: ['most-likely-to'] });
+  r.start('display', 0);
+  // pin the targets so every case is deterministic: a and c both prank b, b pranks c
+  r.missions[a.id] = { text: 'خليه يقول «تمام»', target: b.id };
+  r.missions[b.id] = { text: 'خليه يشرب مية', target: c.id };
+  r.missions[c.id] = { text: 'خليه يضحك', target: b.id };
+  return { r, a, b, c };
+};
+
+test('mission: answering a prank on me leaves my own open mission untouched', () => {
+  const { r, a, b } = missionRoom();
+  r.claimMission(a.id);
+  const before = r.snapshot({ role: 'player', playerId: b.id }, 0);
+  assert.equal(before.claims.length, 1, 'b sees the question');
+  assert.equal(before.mission.claimed, false, 'b still has an open mission of their own');
+
+  r.answerClaim(b.id, before.claims[0].id, true);
+
+  const after = r.snapshot({ role: 'player', playerId: b.id }, 0);
+  assert.deepEqual(after.mission, { text: 'خليه يشرب مية', target: r.missions[b.id].target, claimed: false });
+  assert.equal(after.claims.length, 0);
+  assert.equal(b.stats.points, -1);
+  assert.equal(b.stats.missionsDone, 0, 'answering never counts as doing my mission');
+  assert.equal(a.stats.points, 2);
+});
+
+test('mission: with two pranks waiting, the answer lands on the claim it names', () => {
+  const { r, a, b, c } = missionRoom();
+  r.claimMission(a.id);
+  r.claimMission(c.id);
+  const fromC = r.snapshot({ role: 'player', playerId: b.id }, 0).claims.find((x) => x.from === c.id);
+
+  r.answerClaim(b.id, fromC.id, false);
+
+  assert.equal(c.stats.points, 0, 'a "no" gives nothing');
+  assert.equal(a.stats.points, 0, 'the other claim is not touched');
+  const left = r.snapshot({ role: 'player', playerId: b.id }, 0).claims;
+  assert.equal(left.length, 1);
+  assert.equal(left[0].from, a.id);
+});
+
+test('mission: claiming my own mission while a prank on me waits keeps both separate', () => {
+  const { r, a, b, c } = missionRoom();
+  r.claimMission(a.id); // b is asked about a's prank
+  r.claimMission(b.id); // b also says they did their own (on c)
+  assert.equal(r.snapshot({ role: 'player', playerId: b.id }, 0).claims.length, 1, 'b is still asked about a');
+  assert.equal(r.snapshot({ role: 'player', playerId: b.id }, 0).mission.claimed, true);
+  assert.equal(r.snapshot({ role: 'player', playerId: c.id }, 0).claims[0].from, b.id, 'c is asked about b');
+  r.answerClaim(b.id, r.snapshot({ role: 'player', playerId: b.id }, 0).claims[0].id, true);
+  assert.equal(r.snapshot({ role: 'player', playerId: b.id }, 0).mission.claimed, true, "answering a's prank does not cancel b's own claim");
 });

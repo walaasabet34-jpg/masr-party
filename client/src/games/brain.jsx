@@ -272,7 +272,7 @@ const simonSays = {
       };
     }, [len, me?.out]);
     if (!me) return null;
-    if (me.out) return <div className="flex flex-1 flex-col items-center justify-center gap-4"><Sent>{me.cleared ? `افتكرت ${v.start + me.cleared - 1} ورا بعض 🧠` : 'غلط! خرجت 🐟'}</Sent></div>;
+    if (me.out) return <div className="flex flex-1 flex-col items-center justify-center gap-4"><Sent>{me.cleared ? `افتكرت ${v.start + me.cleared - 1} ألوان ورا بعض 🧠` : 'غلط! خرجت 🐟'}</Sent></div>;
     const press = (k) => {
       if (phase !== 'repeat') return;
       const next = [...input, k];
@@ -289,7 +289,7 @@ const simonSays = {
     return (
       <div className="flex flex-1 flex-col gap-4">
         <div className="text-center font-display font-black text-3xl">{phase === 'watch' ? 'بص…' : phase === 'repeat' ? 'كرّرها!' : 'حلو! كمان واحدة…'}</div>
-        <div className="text-center text-ink-muted">الطول {len}</div>
+        <div className="text-center text-ink-muted">{len} ألوان</div>
         <div className="grid grid-cols-2 gap-3">
           {PADS.map((c, k) => (
             <button key={k} type="button" onPointerDown={() => press(k)} className="aspect-square rounded-[30px] border-4 border-black shadow-hard transition-all" style={{ background: c, opacity: lit === k ? 1 : 0.45, transform: lit === k ? 'scale(1.04)' : 'none' }} />

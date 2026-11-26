@@ -16,8 +16,9 @@ export const mostLikelyTo = {
   minPlayers: 3,
   durationMs: 25000,
   tagline: 'شاوِر بصباعك. في السر.',
-  howTo: 'هيظهر سؤال. صوّت في السر للي ينطبق عليه أكتر واحد. ومسموح… آه، مسموح تصوّت لنفسك.',
-  rule: 'اللي ياخد أكتر أصوات ياخد صفر، ولو كان لوحده يتخصم منه نقطة كمان. لو تعادل، كلهم ياخدوا صفر من غير خصم.',
+  howTo: 'صوّت في السر لأكتر حد السؤال ينطبق عليه. ينفع تصوّت لنفسك.',
+  rule: 'أكتر واحد خد أصوات ياخد صفر.',
+  details: 'لو كان الأعلى لوحده يتخصم منه نقطة كمان. لو فيه تعادل، كلهم ياخدوا صفر من غير خصم.',
   setup(ctx) {
     const q = pickFresh(ctx, forMode(MOST_LIKELY, ctx.mode));
     return { prompt: q.text, votes: {} };
@@ -36,7 +37,7 @@ export const mostLikelyTo = {
       headline: losers.length ? `${namesOf(ctx.players, losers)} — أكتر واحد ${s.prompt}` : 'محدش صوّت. حاجة تشك!',
       winners: [],
       losers,
-      deduct: losers.length === 1 ? { [losers[0]]: 'خدت أكتر أصوات لوحدك' } : {},
+      deduct: losers.length === 1 ? { [losers[0]]: 'أعلى أصوات لوحده' } : {},
       points: Object.fromEntries(ctx.players.map((p) => [p.id, losers.includes(p.id) ? 0 : 1])),
       reveal: { label: 'أكتر واحد', value: s.prompt },
       table: { layout: 'bars', rows: rows.map((x) => ({ id: x.id, n: x.n, value: votesTxt(x.n) })) },
@@ -87,7 +88,7 @@ export const wouldYouRather = {
     const label = (k) => `${k === 0 ? '🅰️' : '🅱️'} ${k === 0 ? s.a : s.b}`;
     const rows = [];
     big.forEach((k, g) => ctx.players.filter((p) => s.votes[p.id] === k).forEach((p) => rows.push({ id: p.id, group: g, value: k === 0 ? '🅰️' : '🅱️' })));
-    none.forEach((id) => rows.push({ id, value: 'ما صوّتش' }));
+    none.forEach((id) => rows.push({ id, value: 'من غير تصويت' }));
     return {
       headline,
       winners: [],
@@ -112,8 +113,9 @@ export const imposter = {
   weight: 0.7,
   durationMs: IMP_TALK + IMP_VOTE + 2000,
   tagline: 'كله عارف الكلمة. إلا واحد.',
-  howTo: 'اضغط مطوّل على موبايلك عشان تشوف الكلمة السرية. واحد فيكم دخيل وبيشوف التصنيف بس. ابتدوا من اللي ظاهر على الشاشة ولفّوا، كل واحد يقول كلمة واحدة بصوت عالي عنها. وبعدين صوّتوا مين اللي بيفبرك.',
-  rule: 'لو اتمسك الدخيل: يتخصم منه نقطة، واللي صوّتوا عليه ياخدوا ٢ والباقي ١. لو هرب: ياخد ٣ والباقي صفر.',
+  howTo: 'اضغط مطوّل تشوف الكلمة السرية، وقول كلمة واحدة عنها بصوت عالي لما ييجي دورك. بعدين صوّتوا مين الدخيل: هو بيشوف الموضوع بس وبيفبرك.',
+  rule: 'لو الدخيل اتكشف، اللي صوّتوا عليه ياخدوا ٢. لو هرب، ياخد ٣.',
+  details: 'الدور بيبدأ من الاسم اللي ظاهر على الشاشة ويلف. لو اتكشف: الدخيل يتخصم منه نقطة والباقي ياخدوا ١. لو هرب: الباقي ياخدوا صفر.',
   setup(ctx) {
     const imp = ctx.players[Math.floor(ctx.rng() * ctx.players.length)].id;
     const others = ctx.players.filter((p) => p.id !== imp);
@@ -155,7 +157,7 @@ export const imposter = {
     const crew = ctx.players.filter((p) => p.id !== s.imposter).map((p) => p.id);
     const points = Object.fromEntries(ctx.players.map((p) => [p.id, p.id === s.imposter ? (caught ? 0 : 3) : caught ? (s.votes[p.id] === s.imposter ? 2 : 1) : 0]));
     return {
-      headline: caught ? `اتمسك! ${imp} كان الدخيل. الكلمة كانت «${s.secret.word}»` : `${imp} ضحك عليكم كلكم! الكلمة كانت «${s.secret.word}»`,
+      headline: caught ? `🕵️ الدخيل طلع ${imp}، واتكشف! الكلمة كانت «${s.secret.word}»` : `الدخيل ${imp} ضحك عليكم كلكم! الكلمة كانت «${s.secret.word}»`,
       winners: caught ? crew : [s.imposter],
       losers: caught ? [s.imposter] : crew,
       deduct: caught ? { [s.imposter]: 'الدخيل واتمسك' } : {},
@@ -219,7 +221,7 @@ function duelVoting(stageWrite) {
       if (!m || !author || author === pid || (lock && pid in m.votes) || !mayVote(m, pid, ctx.players.length)) return s;
       return { ...s, matchups: s.matchups.map((x, i) => (i === s.k ? { ...x, votes: { ...x.votes, [pid]: author } } : x)) };
     },
-    resolve(s, ctx, isBlank, blankWhy = 'ما بعتش حاجة') {
+    resolve(s, ctx, isBlank, blankWhy = 'من غير إجابة') {
       let best = null;
       const rows = [];
       s.matchups.forEach((m, g) => {
@@ -237,7 +239,7 @@ function duelVoting(stageWrite) {
         const groupMax = Math.max(...r.rows.filter((y) => y.group === x.group).map((y) => y.primary));
         if (!r.losers.includes(x.id)) continue;
         if (x.forceLoss) deduct[x.id] = blankWhy;
-        else if (x.primary === 0 && groupMax > 0) deduct[x.id] = 'ولا صوت وخصمك خد أصوات';
+        else if (x.primary === 0 && groupMax > 0) deduct[x.id] = 'صفر أصوات والخصم خد أصوات';
       }
       return { r, best, deduct };
     },
@@ -271,9 +273,10 @@ export const quipClash = {
   minPlayers: 3,
   weight: 1.3,
   durationMs: QC_WRITE + 10 * (QC_VOTE + QC_REVEAL) + 5000,
-  tagline: 'خليك أدمّ من اللي قصادك.',
-  howTo: 'انت وواحد تاني هتاخدوا نفس السؤال. اكتب أظرف إجابة تقدر عليها. وبعدين الكل يصوّت لأحسن واحدة من غير ما يعرف مين كتب إيه.',
-  rule: 'الإجابة الأكتر أصوات تاخد ٢، والأقل صفر. لو ما خدتش ولا صوت وخصمك خد، أو ما كتبتش حاجة، يتخصم منك نقطة.',
+  tagline: 'خليك أظرف من اللي قصادك.',
+  howTo: 'اكتب أظرف إجابة على السؤال. حد تاني بيجاوب على نفس السؤال، وبعدين الكل يصوّت لأحسن إجابة من غير أسامي.',
+  rule: 'الإجابة الأكتر أصوات تاخد ٢، والأقل صفر.',
+  details: 'لو ما خدتش ولا صوت وخصمك خد، أو ما كتبتش حاجة، يتخصم منك نقطة.',
   setup(ctx) {
     const pairs = pairUp(ctx);
     const qs = pickFreshMany(ctx, forMode(QUIPS, ctx.mode), pairs.length);
@@ -292,7 +295,7 @@ export const quipClash = {
   },
   isComplete: (s) => s.stage === 'done',
   resolve(s, ctx) {
-    const { r, best, deduct } = quipDuel.resolve(s, ctx, (e) => !e, 'ما كتبتش إجابة');
+    const { r, best, deduct } = quipDuel.resolve(s, ctx, (e) => !e, 'من غير إجابة');
     return {
       deduct,
       headline: best ? `أحسن قفشة: «${best.m.entries[best.by]}» من ${nameOf(ctx.players, best.by)} 🎤` : 'محدش كتب حاجة! 🦗',
@@ -302,7 +305,7 @@ export const quipClash = {
       table: {
         layout: 'pairs',
         groups: s.matchups.map((m) => ({ title: m.prompt })),
-        rows: r.rows.map((x) => ({ id: x.id, group: x.group, place: x.place, value: String(x.primary), why: x.facts.entry ? `«${x.facts.entry}»` : '🦗 ما كتبش' })),
+        rows: r.rows.map((x) => ({ id: x.id, group: x.group, place: x.place, value: String(x.primary), why: x.facts.entry ? `«${x.facts.entry}»` : '🦗 من غير إجابة' })),
       },
     };
   },
@@ -353,8 +356,9 @@ export const doodleDuel = {
   minPlayers: 3,
   durationMs: DD_DRAW + DD_GRACE + 10 * (DD_VOTE + DD_REVEAL) + 5000,
   tagline: 'نفس الكلمة. رسمتين. رسمة واحدة تكسب.',
-  howTo: 'انت وواحد تاني هترسموا نفس الحاجة في دقيقة. وبعدين الكل يصوّت لأحسن رسمة من غير ما يعرف مين رسم إيه.',
-  rule: 'الرسمة الأكتر أصوات تاخد ٢، والأقل صفر. الورقة الفاضية، أو صفر أصوات وخصمك خد، = يتخصم منك نقطة.',
+  howTo: 'ارسم الكلمة في دقيقة. حد تاني بيرسم نفس الكلمة، وبعدين الكل يصوّت لأحسن رسمة من غير أسامي.',
+  rule: 'الرسمة الأكتر أصوات تاخد ٢، والأقل صفر.',
+  details: 'لو ورقتك فاضية، أو خدت صفر أصوات وخصمك خد، يتخصم منك نقطة.',
   setup(ctx) {
     const pairs = pairUp(ctx);
     const qs = pickFreshMany(ctx, forMode(DOODLES, ctx.mode), pairs.length);
@@ -474,7 +478,7 @@ export const bigFatLie = {
     const losers = fell.filter((id) => id !== best?.[0]);
     const truthText = s.fib.answers[0];
     return {
-      headline: best ? `الحقيقة: «${truthText}». أكبر فشّار: ${nameOf(ctx.players, best[0])} (ضحك على ${best[1]}) 🤥` : `الحقيقة: «${truthText}». محدش اتضحك عليه!`,
+      headline: best ? `الحقيقة: «${truthText}». أكبر فشّار: ${nameOf(ctx.players, best[0])} (صدّقه ${best[1]}) 🤥` : `الحقيقة: «${truthText}». محدش اتضحك عليه!`,
       winners: best ? [best[0]] : [],
       losers,
       points: Object.fromEntries(ctx.players.map((p) => [p.id, losers.includes(p.id) ? 0 : (found(p.id) ? 2 : 0) + (fooledBy.get(p.id) ?? 0)])),
@@ -483,10 +487,10 @@ export const bigFatLie = {
         layout: 'list',
         rows: ctx.players.map((p) => {
           const f = fooledBy.get(p.id) ?? 0;
-          const extra = f ? ` · ضحك على ${f}` : '';
-          if (found(p.id)) return { id: p.id, mark: p.id === best?.[0] ? '🤥' : '✓', value: 'لقاها', why: `لقى الحقيقة${extra}` };
+          const extra = f ? ` · فشره صدّقه ${f}` : '';
+          if (found(p.id)) return { id: p.id, mark: p.id === best?.[0] ? '🤥' : '✓', value: 'الحقيقة ✓', why: `اختار الحقيقة${extra}` };
           const o = s.picks[p.id] === undefined ? null : s.options[s.picks[p.id]];
-          return { id: p.id, mark: p.id === best?.[0] ? '🤥' : '✗', value: p.id === best?.[0] ? 'أحسن فشّار' : 'اتضحك عليه', why: o ? `صدّق فشر ${namesOf(ctx.players, o.authors)}${extra}` : `ما اختارش${extra}` };
+          return { id: p.id, mark: p.id === best?.[0] ? '🤥' : '✗', value: p.id === best?.[0] ? 'أحسن فشّار' : 'اختيار غلط', why: o ? `اختار فشر ${namesOf(ctx.players, o.authors)}${extra}` : `من غير اختيار${extra}` };
         }),
       },
     };
@@ -536,8 +540,8 @@ export const drunkTelephone = {
   weight: 0.9,
   durationMs: DT_WRITE + DT_DRAW + DT_GUESS + 20 * (3 * DT_STEP_SHOW + DT_BLAME) + 8000,
   tagline: 'اكتبها. ارسمها. خمّنها. بوّظها.',
-  howTo: 'اكتب جملة مضحكة (أو دوس 🎲). الموبايل اللي بعدك يرسمها، واللي بعده يخمّن الرسمة. وبعدين الشاشة الكبيرة تعرض كل السلاسل.',
-  rule: 'كل سلسلة باظت، الكل يصوّت مين بوّظها: الرسّام ولا اللي خمّن. هو اللي ياخد صفر.',
+  howTo: 'اكتب جملة مضحكة (أو دوس 🎲). اللي بعدك هيرسمها، واللي بعده هيخمّن الرسمة. في الآخر هنشوف كل جملة وصلت لفين.',
+  rule: 'لو الجملة باظت، صوّتوا مين بوّظها: الرسّام ولا اللي خمّن. اللي ياخد الأصوات ياخد صفر.',
   setup(ctx) {
     const order = shuffle(ctx.rng, ctx.players.map((p) => p.id));
     return { order, chains: order.map(() => []), step: 0, stage: 'play', until: null, reveals: [], r: 0, revealStart: null, blame: [], lateUntil: 0 };
@@ -607,7 +611,7 @@ export const drunkTelephone = {
     });
     const uniq = [...new Set(losers)].filter((id) => has(ctx, id));
     return {
-      headline: firstRuined && firstRuined[0]?.text ? `«${firstRuined[0].text}» بقت «${firstRuined[2]?.text || '…'}» 🎨` : `${perfects === 1 ? 'سلسلة واحدة' : `${perfects} سلاسل`} مظبوطة! محدش بوّظ حاجة.`,
+      headline: firstRuined && firstRuined[0]?.text ? `«${firstRuined[0].text}» بقت «${firstRuined[2]?.text || '…'}» 🎨` : `${perfects === 1 ? 'الجملة وصلت' : `${perfects} جمل وصلوا`} زي ما هي! محدش بوّظ حاجة.`,
       winners: [],
       losers: uniq,
       points: Object.fromEntries(ctx.players.map((p) => [p.id, uniq.includes(p.id) ? 0 : 1])),
@@ -680,7 +684,7 @@ export const herdMentality = {
     const shown = groups.slice(0, 6);
     const rows = [];
     shown.forEach((g, k) => g.ids.forEach((id) => rows.push({ id, group: k, value: answers[id] })));
-    for (const id of all) if (!rows.some((r) => r.id === id)) rows.push({ id, value: answers[id] ?? 'ما جاوبش' });
+    for (const id of all) if (!rows.some((r) => r.id === id)) rows.push({ id, value: answers[id] ?? 'من غير إجابة' });
     const table = { layout: 'groups', groups: shown.map((g) => ({ title: `«${g.label}»`, count: g.ids.length })), rows };
     if (biggest <= 1) {
       return { headline: 'مفيش قطيع! كل واحد في حتة. كله ياخد صفر.', winners: [], losers: all, points: Object.fromEntries(all.map((id) => [id, 0])), reveal: { label: 'السؤال', value: s.q }, table };
@@ -711,8 +715,9 @@ export const hotTake = {
   minPlayers: 3,
   durationMs: 25000,
   tagline: 'قيّمها من ١ لـ١٠. ما تبقاش الغريب.',
-  howTo: 'هيظهر حاجة على الشاشة. قيّمها من ١ (زفت) لـ١٠ (تحفة). وبعدين هنحسب متوسط الأوضة.',
-  rule: 'أبعد واحد عن المتوسط ياخد صفر. أقرب واحد يكسب. لو تعادل: اللي قيّم متأخر.',
+  howTo: 'قيّم اللي ظاهر من ١ (زفت) لـ١٠ (تحفة). حاول تقرّب من رأي الأوضة كلها.',
+  rule: 'الأقرب لمتوسط الأوضة يكسب، والأبعد ياخد صفر.',
+  details: 'لو فيه تعادل، اللي قيّم متأخر ياخد صفر.',
   setup: (ctx) => ({ q: pickFresh(ctx, forMode(HOT_TAKES, ctx.mode)).text, rates: {}, at: {} }),
   onInput(s, pid, inp, ctx) {
     if (inp.type !== 'rate' || pid in s.rates) return s;
@@ -735,7 +740,7 @@ export const hotTake = {
       ...r,
       points: pointsFrom(r.rows, r.winners, r.losers),
       reveal: { label: 'متوسط الأوضة', q: s.q, value: a },
-      table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? (x.primary === 0 ? 'بالظبط 🎯' : `بعيد ${x.primary.toFixed(1)}`) : '—', why: x.status === 'ok' ? `قيّم ${x.facts.value}` : 'ما قيّمش' })) },
+      table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? (x.primary === 0 ? 'بالظبط 🎯' : `بعيد ${x.primary.toFixed(1)}`) : '—', why: x.status === 'ok' ? `تقييم ${x.facts.value}` : 'من غير تقييم' })) },
     };
   },
   view: (s, pid) => ({ q: s.q, mine: s.rates[pid] ?? null, rated: Object.keys(s.rates) }),

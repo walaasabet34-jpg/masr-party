@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, useStore } from '../net.js';
 import { T } from '../copy.js';
@@ -165,7 +165,7 @@ function PhoneMenuItems({ snap, close }) {
   return (
     <>
       {isControl(snap) && <HostMenuItems snap={snap} close={close} />}
-      <Confirm label={T.leaveRoom} sure={T.leaveSure} onDo={() => api.leave()} />
+      <Confirm label={T.leaveRoom} sure={snap.hostId === snap.me ? T.leaveSureHost : T.leaveSure} onDo={() => api.leave()} />
     </>
   );
 }
@@ -304,7 +304,7 @@ function SettingsPanel({ snap }) {
     const m = r * 2;
     return m >= 60 ? `حوالي ${Math.round((m / 60) * 2) / 2} ساعة` : `حوالي ${m} دقيقة`;
   };
-  if (!party) return <div className="rounded-2xl bg-black/30 p-4 text-sm">لاعبين ضد بعض أو ٤ في فريقين. أول وتالت لاعب فريق، وتاني ورابع لاعب فريق. اللعب لحد ١٠١ نقطة؛ كل واحد بيشوف ورقه بس.</div>;
+  if (!party) return <div className="rounded-2xl bg-black/30 p-4 text-sm">٢ ضد بعض، أو ٤ في فريقين: الأول والتالت فريق، والتاني والرابع فريق. اللعب لحد ١٠١ نقطة، وكل واحد بيشوف ورقه بس.</div>;
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-3 gap-2">
@@ -429,6 +429,7 @@ function LobbyPhone({ snap }) {
           </div>
           <div className="dock-bottom mt-auto pt-5">
             {ok ? <HoldButton label={`${T.startNight} 🚀`} onDone={api.start} color={snap.settings.format === 'boat' ? 'cyan' : T.modes[snap.settings.mode].color} className="w-full" /> : <Btn color="dark" size="lg" className="w-full" disabled>{snap.settings.format === 'boat' ? 'محتاجين ٢ أو ٤ لاعيبة متصلين' : `${T.needPlayers} ٢`}</Btn>}
+            {ok && <div className="mt-2 text-center text-xs text-ink-muted">{T.holdToStart}</div>}
           </div>
         </>
       ) : (
@@ -552,6 +553,12 @@ function NextGameCard({ snap, big }) {
           {'⭐ '}
           {meta.rule}
         </div>
+        {meta.details && (
+          <details className="mt-2 text-sm text-ink-muted">
+            <summary className="cursor-pointer select-none rounded-xl bg-white/10 px-3 py-2 font-bold text-white">👇 {T.moreDetails}</summary>
+            <p className="mt-1 leading-relaxed">{meta.details}</p>
+          </details>
+        )}
         {snap.fallbackNote && <p className="mt-2 text-sm text-ink-muted">{T.fallbackNote(snap.fallbackNote.games.join('، '), snap.fallbackNote.need, snap.fallbackNote.game)}</p>}
       </div>
     </div>
@@ -683,16 +690,16 @@ function MissionCard({ snap }) {
   if (!m) return null;
   const text = m.text.replace('{name}', P[m.target]?.name ?? '؟');
   return (
-    <div className="rounded-[28px] border-4 border-black bg-[#111] p-4 shadow-hard">
+    <div className="rounded-[28px] border-4 border-dashed border-white/25 bg-[#111] p-4">
       <button type="button" onClick={() => setOpen(!open)} className="flex w-full items-center justify-between font-display font-black text-lg">
         <span>🕶️ {T.secretMission}</span>
-        <span className="text-sm text-ink-muted">{open ? 'اخفي' : 'اضغط تشوف'}</span>
+        <span className="text-sm text-ink-muted">{open ? T.missionHide : T.missionShow}</span>
       </button>
       {open && (
         <div className="mt-2">
           <div className="font-display font-black text-2xl text-lime">{text}</div>
           <p className="mt-1 text-sm text-ink-muted">{T.missionHint}</p>
-          <Btn color="lime" size="sm" className="mt-3 w-full" disabled={m.claimed} onClick={api.claimMission}>
+          <Btn color="cyan" size="sm" className="mt-3 w-full" disabled={m.claimed} onClick={api.claimMission}>
             {m.claimed ? T.waitingConfirm : T.missionDone}
           </Btn>
         </div>
@@ -701,26 +708,63 @@ function MissionCard({ snap }) {
   );
 }
 
+// Someone says they pranked me: a question of its own, answered inside the same card.
+// It covers the screen so it can't be mistaken for my own mission button, waits while a
+// round is being played, and ignores taps for a moment after each answer so a quick
+// double tap can't answer the next question by accident.
+const CLAIM_TAP_LOCK_MS = 700;
+// if the server still lists a claim this long after we answered it, the answer was lost: ask again
+const CLAIM_RESEND_MS = 5000;
 function ClaimOverlay({ snap }) {
-  const c = snap.claims?.[0];
   const P = playerMap(snap);
-  if (!c) return null;
+  const [answered, setAnswered] = useState(null);
+  const [locked, setLocked] = useState(false);
+  const c = snap.claims?.find((x) => x.id !== answered);
+  const hidden = !c || snap.phase === 'playing';
+  // device clock only (no server offset). Layout effect: locked before the question is first painted,
+  // and re-armed whenever it becomes visible again, so a round ending can't reveal it unlocked.
+  useLayoutEffect(() => {
+    if (hidden) return undefined;
+    setLocked(true);
+    const t = setTimeout(() => setLocked(false), CLAIM_TAP_LOCK_MS);
+    return () => clearTimeout(t);
+  }, [c?.id, hidden, answered]);
+  const pendingIds = (snap.claims ?? []).map((x) => x.id).join(',');
+  useEffect(() => {
+    if (!answered) return undefined;
+    if (!pendingIds.split(',').includes(answered)) {
+      setAnswered(null);
+      return undefined;
+    }
+    const t = setTimeout(() => setAnswered(null), CLAIM_RESEND_MS);
+    return () => clearTimeout(t);
+  }, [answered, pendingIds]);
+  if (hidden) return null;
+  const from = P[c.from]?.name ?? '؟';
+  const answer = (yes) => {
+    if (locked) return;
+    setLocked(true);
+    setAnswered(c.id);
+    api.answerClaim(c.id, yes);
+  };
   return (
-    <div className="mx-4 mb-3 rounded-[28px] border-4 border-black bg-magenta p-4 text-white shadow-hard">
-      <div className="flex items-center gap-2">
-        <Avatar p={P[c.from]} size={36} />
-        <div className="font-display font-black">
-          {P[c.from]?.name} {T.claimTitle}
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 p-5" role="dialog" aria-modal="true" aria-labelledby="claim-q">
+      <div className="w-full max-w-sm rounded-[28px] border-4 border-black bg-magenta p-5 text-white shadow-hard">
+        <div className="flex items-center gap-2 font-display font-black">
+          <Avatar p={P[c.from]} size={36} />
+          <span>{T.claimFrom(from)}</span>
         </div>
-      </div>
-      <div className="mt-2 font-display font-black text-xl">«{c.text.replace('{name}', P[c.target]?.name ?? '')}»</div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <Btn color="dark" size="sm" onClick={() => api.answerClaim(c.id, false)}>
-          {T.noItDidnt}
-        </Btn>
-        <Btn color="lime" size="sm" onClick={() => api.answerClaim(c.id, true)}>
-          {T.yesItHappened}
-        </Btn>
+        <div className="mt-3 rounded-2xl bg-black/30 p-3 font-display font-black text-xl">{c.text.replace('{name}', P[c.target]?.name ?? '')}</div>
+        <h2 id="claim-q" className="mt-4 text-center font-display font-black text-2xl">{T.claimQuestion}</h2>
+        <div className="mt-3 flex flex-col gap-2">
+          <Btn color="white" disabled={locked} onClick={() => answer(true)}>
+            {T.yesItHappened}
+          </Btn>
+          <Btn color="dark" disabled={locked} onClick={() => answer(false)}>
+            {T.noItDidnt}
+          </Btn>
+        </div>
+        <p className="mt-3 text-center text-sm text-white/80">{T.claimStakes(from)}</p>
       </div>
     </div>
   );

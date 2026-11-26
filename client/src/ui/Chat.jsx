@@ -7,11 +7,13 @@ import { sfx } from '../sound.js';
 
 const MAX = 300;
 const SYS = {
-  join: 'دخل الأوضة',
-  left: 'خرج من الأوضة',
-  kicked: 'اتشال من الأوضة',
-  away: 'النت فصل عنده',
-  back: 'رجع تاني',
+  // shown right after a player's name, so phrased to read right for anyone
+  join: 'جوه الأوضة دلوقتي 👋',
+  left: 'برّه الأوضة دلوقتي',
+  kicked: 'برّه الأوضة بقرار المضيف',
+  away: 'النت فصل 📶',
+  back: 'رجوع تاني 👋',
+  newHost: 'المضيف الجديد 👑',
 };
 const ERR = { slow: 'بالراحة شوية، استنى ثانية وابعت تاني', repeat: 'نفس الرسالة اتبعتت لسه', empty: 'الرسالة فاضية', not_member: 'انت مش في الأوضة' };
 const time = (t) => new Date(t).toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' });

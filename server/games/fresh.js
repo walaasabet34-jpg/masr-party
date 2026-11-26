@@ -16,8 +16,9 @@ export const finishProverb = race({
   isNew: true,
   durationMs: 40000,
   tagline: 'أول المثل عندك. كمّله صح.',
-  howTo: 'هيظهر أول مثل مصري، ودوس على آخره الصح من أربعة. خمس أمثال، وكل غلطة بـ٣ ثواني زيادة.',
-  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ ياخد صفر.',
+  howTo: 'كمّل المثل المصري: دوس على آخره الصح من ٤ اختيارات. ٥ أمثال.',
+  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ صفر.',
+  details: 'كل غلطة بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     return pickFreshMany(ctx, PROVERBS, 5).map((x) => {
       const others = shuffle(ctx.rng, PROVERBS.filter((y) => y.id !== x.id)).slice(0, 3).map((y) => y.end);
@@ -37,8 +38,9 @@ export const zoomIn = race({
   isNew: true,
   durationMs: 40000,
   tagline: 'صورة قريبة قوي. دي إيه؟',
-  howTo: 'هتشوف حتة صغيرة من صورة متكبّرة قوي، وهي بتبعد شوية بشوية. اعرف هي إيه ودوس على اسمها. خمس صور، وكل غلطة بـ٣ ثواني زيادة.',
-  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ ياخد صفر.',
+  howTo: 'اعرف الصورة دي إيه ودوس على اسمها. هتبدأ قريبة قوي وتبعد شوية بشوية. ٥ صور.',
+  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ صفر.',
+  details: 'كل غلطة بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     return pickFreshMany(ctx, ZOOMS, 5).map((x) => {
       const others = shuffle(ctx.rng, ZOOMS.filter((y) => y.id !== x.id)).slice(0, 3).map((y) => y.name);
@@ -62,8 +64,9 @@ export const orderUp = race({
   isNew: true,
   durationMs: 55000,
   tagline: 'احفظ الطلب. وما تلخبطش.',
-  howTo: 'طلب من ٣ حاجات هيظهر ثانيتين ونص بس. بعدين اختار الطلب الصح من أربع طلبات شبه بعض. أربع طلبات، وكل غلطة بـ٣ ثواني زيادة.',
-  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ ياخد صفر.',
+  howTo: 'احفظ الطلب (٣ حاجات) في ثانيتين ونص، وبعدين اختاره من ٤ طلبات شبه بعض. ٤ طلبات.',
+  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ صفر.',
+  details: 'كل غلطة بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     const show = (o) => o.map((x) => ({ e: x.emoji, n: x.name }));
     return Array.from({ length: 4 }, () => {
@@ -88,8 +91,9 @@ export const numberRush = race({
   isNew: true,
   durationMs: 35000,
   tagline: 'من ١ لـ١٢. بأسرع ما يمكن.',
-  howTo: 'الأرقام من ١ لـ١٢ متلخبطة على موبايلك. دوس عليهم بالترتيب: ١ وبعدين ٢ وبعدين ٣… كل دوسة غلط بـ٣ ثواني زيادة.',
-  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ ياخد صفر.',
+  howTo: 'دوس على الأرقام بالترتيب من ١ لـ١٢: ١ وبعدين ٢ وبعدين ٣…',
+  rule: 'الأسرع ياخد ٣، واللي بعده ٢، والأبطأ صفر.',
+  details: 'كل دوسة غلط بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     const grid = shuffle(ctx.rng, Array.from({ length: RUSH_N }, (_, i) => i + 1));
     return Array.from({ length: RUSH_N }, (_, i) => ({ prompt: i + 1, options: grid, answer: grid.indexOf(i + 1) }));
@@ -115,9 +119,10 @@ export const penaltyKicks = {
   isNew: true,
   minPlayers: 2,
   durationMs: PK_ROUNDS * (PK_CHOOSE + PK_REVEAL) + 3000,
-  tagline: 'شوط. واتنطّط. وخمّن.',
-  howTo: 'في كل جولة إنت بتشوط على حارس، وفي نفس الوقت إنت حارس لحد تاني. اختار هتشوط فين (يمين، نص، شمال) وهتنط فين. لو الحارس نط في نفس اتجاه الشوطة يصدّها، غير كده تبقى جون. ٣ جولات.',
-  rule: 'كل جون بنقطة وكل صدّة بنقطة. الأعلى ياخد ٣، واللي بعده ٢، والأقل ياخد صفر.',
+  tagline: 'شوط. نُط. خمّن.',
+  howTo: 'اختار هتشوط فين (يمين، نص، شمال)، وهتنط فين وانت حارس. الحارس اللي ينط في اتجاه الشوطة يصدّها، غير كده جون. ٣ جولات.',
+  rule: 'الأعلى ياخد ٣، واللي بعده ٢، والأقل صفر.',
+  details: 'كل جون بنقطة وكل صدّة بنقطة. في كل جولة بتشوط على حارس، وانت نفسك حارس لحد تاني.',
   setup: (ctx) => ({ order: shuffle(ctx.rng, ctx.players.map((p) => p.id)), round: 0, stage: 'choose', until: null, shots: {}, dives: {}, last: [], goals: {}, saves: {} }),
   onTick(s, ctx) {
     if (s.until === null) return { ...s, until: ctx.now + PK_CHOOSE };
@@ -200,8 +205,9 @@ export const whoSaidIt = {
   minPlayers: 3,
   durationMs: WS_WRITE + WS_MAX * (WS_GUESS + WS_REVEAL) + 4000,
   tagline: 'جاوب عن نفسك. وخمّن مين كتب إيه.',
-  howTo: 'هيظهر سؤال عنك، اكتب إجابتك. بعدين الإجابات هتظهر واحدة واحدة من غير أسماء، وكل واحد يخمّن مين اللي كتبها.',
-  rule: 'كل تخمين صح بنقطة، وكل حد ما عرفش إجابتك بنقطة ليك. الأعلى ياخد ٣، واللي بعده ٢، والأقل ياخد صفر.',
+  howTo: 'جاوب على السؤال عن نفسك. بعدين الإجابات هتظهر من غير أسامي، وخمّن مين كتب كل واحدة.',
+  rule: 'الأعلى ياخد ٣، واللي بعده ٢، والأقل صفر.',
+  details: 'كل تخمين صح بنقطة، وكل حد ما عرفش إجابتك بنقطة ليك.',
   setup: (ctx) => ({ prompt: pickFresh(ctx, WHO_SAID).text, stage: 'write', until: null, answers: {}, queue: [], idx: 0, guesses: {}, score: {} }),
   onTick(s, ctx) {
     if (s.until === null) return { ...s, until: ctx.now + WS_WRITE };
@@ -242,7 +248,7 @@ export const whoSaidIt = {
     const rows = ctx.players.map((p) => ({ id: p.id, status: 'ok', primary: s.score[p.id] ?? 0 }));
     const r = rank(rows, { better: 'higher', allTied: 'nobody' });
     return {
-      headline: s.queue.length < 2 ? 'محدش كتب كفاية. الجولة دي من غير نقط.' : r.winners.length ? `🗣️ ${r.winners.map((id) => nameOf(ctx.players, id)).join(' و')} أشطر واحد في السهرة` : 'تعادل!',
+      headline: s.queue.length < 2 ? 'محدش كتب كفاية. الجولة دي من غير نقط.' : r.winners.length ? `🗣️ أشطر واحد في السهرة: ${r.winners.map((id) => nameOf(ctx.players, id)).join(' و')}` : 'تعادل!',
       ...(s.queue.length < 2 ? { winners: [], losers: [], rows: [] } : r),
       points: s.queue.length < 2 ? {} : pointsFrom(r.rows, r.winners, r.losers),
       reveal: { label: 'السؤال', value: s.prompt },

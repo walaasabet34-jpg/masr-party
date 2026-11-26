@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { api } from '../net.js';
 import { T } from '../copy.js';
-import { Avatar, HEX, TimeBar, playerMap, useGameMeta, darkText } from '../ui/kit.jsx';
+import { Avatar, HEX, TimeBar, playerMap, useGameMeta, darkText, useNow } from '../ui/kit.jsx';
 import { sfx, haptic } from '../sound.js';
 
 export const roster = (snap) => (snap.roster ?? []).map((id) => playerMap(snap)[id]).filter(Boolean);
@@ -19,6 +19,9 @@ export function GameTimer({ snap, until, total }) {
 export function Done({ ids, snap, label = T.answered, big }) {
   const ps = roster(snap);
   const set = new Set(ids ?? []);
+  const now = useNow(500);
+  const left = snap.phase === 'playing' && snap.phaseEndsAt ? Math.max(0, Math.ceil((snap.phaseEndsAt - now) / 1000)) : 0;
+  const waiting = set.size < ps.length && left > 0;
   return (
     <div className="flex flex-col items-center gap-2">
       <div className={`flex flex-wrap justify-center ${big ? 'gap-3' : 'gap-1.5'}`}>
@@ -31,6 +34,7 @@ export function Done({ ids, snap, label = T.answered, big }) {
       <div className="font-display font-black text-ink-muted">
         {set.size}/{ps.length} {label}
       </div>
+      {waiting && <div className="text-center text-sm text-ink-muted">⏳ {T.waitingRest(left)}</div>}
     </div>
   );
 }

@@ -21,6 +21,8 @@ export const getGame = (id) => GAMES.find((g) => g.id === id);
 export const CLASSICS = GAMES.filter((g) => !g.isNew).map((g) => g.id);
 
 // Public metadata sent to every client (no answers, no content).
+const POINTS_NOTE = 'النقط: لو خسرت عادي بتاخد صفر، ونقطة بتتشال منك بس في الحالة المكتوبة فوق. مجموعك ممكن ينزل تحت الصفر.';
+
 export const META = GAMES.map((g) => ({
   id: g.id,
   name: g.name,
@@ -32,5 +34,7 @@ export const META = GAMES.map((g) => ({
   isNew: !!g.isNew,
   tagline: g.tagline,
   howTo: g.howTo,
-  rule: g.rule + (g.id === 'roulette' ? '' : ' النقط: مكافأة حسب النتيجة، والخسارة العادية صفر. الخصم (−١) بس في الحالة المكتوبة في القاعدة. الرصيد ممكن يبقى بالسالب.'),
+  rule: g.rule,
+  // rare cases and the general scoring note: shown folded under the rule
+  details: [g.details, g.id === 'roulette' ? '' : POINTS_NOTE].filter(Boolean).join(' '),
 }));

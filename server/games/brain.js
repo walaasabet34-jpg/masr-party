@@ -39,7 +39,7 @@ export function race(def) {
       const r = rank(rows, { better: 'lower' });
       const top = r.rows[0]?.status === 'ok' ? r.rows[0] : null;
       return {
-        headline: top ? `${nameOf(ctx.players, top.id)} كسب في ${sec(top.primary)}` : 'محدش خلّص. كله ياخد صفر!',
+        headline: top ? `الأسرع: ${nameOf(ctx.players, top.id)} (${sec(top.primary)})` : 'محدش خلّص. كله ياخد صفر!',
         ...r,
         points: pointsFrom(r.rows, r.winners, r.losers),
         table: {
@@ -50,7 +50,7 @@ export function race(def) {
             place: x.place,
             value: x.status === 'ok' ? sec(x.primary) : `${x.facts.at}/${x.facts.of}`,
             cells: x.status === 'ok' ? [sec(x.facts.base), x.facts.mistakes ? `${x.facts.mistakes}×(+٣ث)` : '–'] : ['–', '–'],
-            why: x.status !== 'ok' ? 'ما خلّصش' : x.facts.mistakes ? `${x.facts.mistakes} غلطة · +${x.facts.mistakes * 3}ث` : undefined,
+            why: x.status !== 'ok' ? 'الوقت خلص' : x.facts.mistakes ? `${x.facts.mistakes} غلطة · +${x.facts.mistakes * 3}ث` : undefined,
           })),
         },
       };
@@ -84,8 +84,9 @@ export const colourClash = race({
   kind: 'brain',
   durationMs: 30000,
   tagline: 'دوس على لون الحبر، مش الكلمة.',
-  howTo: 'هتظهر كلمة لون مكتوبة بلون تاني. دوس على اللون اللي «شايفه» مش اللي «قاريه». ٥ ورا بعض، وكل غلطة بـ٣ ثواني.',
+  howTo: 'دوس على لون الحبر، مش على اللون المكتوب. مثال: «أحمر» مكتوبة بالأزرق ← دوس أزرق. ٥ كلمات.',
   rule: 'أبطأ مخ ياخد صفر.',
+  details: 'كل غلطة بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     const r = ctx.rng;
     const qs = [];
@@ -109,8 +110,9 @@ export const quickMath = race({
   kind: 'brain',
   durationMs: 35000,
   tagline: 'خمس مسائل. هي صعبة يعني؟',
-  howTo: 'خمس مسائل سريعة. دوس على الإجابة الصح بأسرع ما يمكن. كل إجابة غلط بـ٣ ثواني.',
+  howTo: 'حل ٥ مسائل: دوس على الإجابة الصح بأسرع ما يمكن.',
   rule: 'أبطأ آلة حاسبة تاخد صفر.',
+  details: 'كل إجابة غلط بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     const r = ctx.rng;
     const int = (a, b) => a + Math.floor(r() * (b - a + 1));
@@ -174,8 +176,9 @@ export const trueOrFalse = race({
   kind: 'brain',
   durationMs: 45000,
   tagline: 'ست معلومات. فيهم كدب.',
-  howTo: 'ست جمل، واحدة واحدة. دوس ✓ لو صح و✕ لو غلط. بسرعة، بس كل إجابة غلط بـ٣ ثواني.',
-  rule: 'الأبطأ (بالغرامات) ياخد صفر.',
+  howTo: 'دوس ✓ لو الجملة صح و✕ لو غلط. ٦ جمل، واحدة ورا التانية.',
+  rule: 'الأبطأ ياخد صفر.',
+  details: 'كل إجابة غلط بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     return pickFreshMany(ctx, TRUE_FALSE, 6).map((x) => ({ prompt: x.text, options: [true, false], answer: x.true ? 0 : 1 }));
   },
@@ -193,8 +196,9 @@ export const emojiRiddle = race({
   kind: 'brain',
   durationMs: 40000,
   tagline: 'فكّ الإيموجي واعرف الفيلم أو الحاجة اللي وراه.',
-  howTo: 'خمس فوازير، منهم ٣ أفلام مصرية. الإيموجي ممكن يوصف اسم الفيلم أو حاجة من حكايته. اختار من أربع إجابات، وكل غلطة بـ٣ ثواني.',
-  rule: 'أبطأ واحد في الفوازير ياخد صفر.',
+  howTo: 'اعرف الإيموجي بتوصف إيه، واختار الإجابة من ٤. ٥ فوازير، منهم ٣ أفلام مصرية.',
+  rule: 'الأبطأ ياخد صفر.',
+  details: 'الإيموجي ممكن يوصف اسم الفيلم أو حاجة من حكايته. كل غلطة بتزوّد ٣ ثواني على وقتك.',
   generate(ctx) {
     // Keep film clues and the other categories interleaved.
     const movies = pickFreshMany(ctx, MOVIES, 3);
@@ -222,8 +226,9 @@ export const countIt = {
   minPlayers: 2,
   durationMs: CI_LEAD + CI_SHOW + CI_ANSWER + 1000,
   tagline: 'أربع ثواني. شفت كام واحد؟',
-  howTo: 'زحمة إيموجي هتظهر ٤ ثواني على الشاشة الكبيرة وموبايلك. عِد بس اللي هنسألك عليه، وبعدين اكتب رقمك.',
-  rule: 'أبعد تخمين ياخد صفر. لو تعادل: اللي جاوب متأخر.',
+  howTo: 'عِدّ الإيموجي اللي هنسألك عليه بس، وبعدين اكتب الرقم. الزحمة هتفضل ٤ ثواني على الشاشة الكبيرة وموبايلك.',
+  rule: 'أبعد تخمين ياخد صفر.',
+  details: 'لو فيه تعادل، اللي جاوب متأخر ياخد صفر.',
   setup(ctx) {
     const set = pickFresh(ctx, COUNT_SETS);
     const [target, ...rest] = shuffle(ctx.rng, set.emoji);
@@ -254,11 +259,11 @@ export const countIt = {
   resolve(s, ctx) {
     const r = closeness(ctx.players, s.guesses, s.answer, s.at);
     return {
-      headline: `كانوا ${s.answer} ${s.target}. ${r.winners.length ? `${namesOf(ctx.players, r.winners)} جابها` : ''}`.trim(),
+      headline: `كانوا ${s.answer} ${s.target}. ${r.winners.length ? `جابها مظبوط: ${namesOf(ctx.players, r.winners)}` : ''}`.trim(),
       ...r,
       points: pointsFrom(r.rows, r.winners, r.losers),
       reveal: { label: 'الإجابة', q: `${s.target} على الشاشة`, value: String(s.answer) },
-      table: closeTable(r.rows, (n) => `قال ${n}`, (d) => `بعيد بـ${d}`),
+      table: closeTable(r.rows, (n) => `إجابة: ${n}`, (d) => `بعيد بـ${d}`),
     };
   },
   view: (s, pid) => ({ target: s.target, items: s.items, startAt: s.startAt, showFrom: s.startAt && s.startAt + CI_LEAD, showUntil: s.startAt && s.startAt + CI_LEAD + CI_SHOW, myGuess: s.guesses[pid] ?? null, guessed: Object.keys(s.guesses) }),
@@ -273,7 +278,7 @@ function closeness(players, guesses, answer, at) {
 function closeTable(rows, said, off) {
   return {
     layout: 'list',
-    rows: rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? (x.primary === 0 ? 'بالظبط 🎯' : off(x.primary)) : '—', why: x.status === 'ok' ? said(x.facts.value) : 'ما جاوبش' })),
+    rows: rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? (x.primary === 0 ? 'بالظبط 🎯' : off(x.primary)) : '—', why: x.status === 'ok' ? said(x.facts.value) : 'من غير إجابة' })),
   };
 }
 
@@ -289,8 +294,9 @@ export const simonSays = {
   minPlayers: 2,
   durationMs: 55000,
   tagline: 'بص. افتكر. كرر.',
-  howTo: 'موبايلك هينوّر ألوان بترتيب معين. دوس عليهم بنفس الترتيب. كل ما تجيبها صح، السلسلة تزيد واحد. غلطة واحدة وتطلع برة.',
+  howTo: 'كرّر الألوان اللي نوّرت على موبايلك بنفس الترتيب. كل مرة تجيبها صح، بيزيد لون. أول غلطة وتطلع برة.',
   rule: 'أقصر ذاكرة تاخد صفر.',
+  details: 'أقصر ذاكرة = اللي وقف عند أقل عدد ألوان.',
   setup(ctx) {
     const seq = [];
     for (let i = 0; i < SIMON_MAX; i++) {
@@ -318,10 +324,10 @@ export const simonSays = {
     const r = rank(rows, { better: 'higher' });
     const best = Math.max(...all.map((x) => x.cleared));
     return {
-      headline: best > 0 ? `${namesOf(ctx.players, r.winners)} افتكر ${SIMON_START + best - 1} ورا بعض 🧠` : 'ذاكرة سمكة للكل! 🐟',
+      headline: best > 0 ? `أقوى ذاكرة: ${namesOf(ctx.players, r.winners)} — ${SIMON_START + best - 1} ألوان ورا بعض 🧠` : 'ذاكرة سمكة للكل! 🐟',
       ...r,
       points: pointsFrom(r.rows, r.winners, r.losers),
-      table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? `🧠 ${SIMON_START + x.primary - 1} ورا بعض` : '🐟 ٠' })) },
+      table: { layout: 'list', rows: r.rows.map((x) => ({ id: x.id, place: x.place, value: x.status === 'ok' ? `🧠 ${SIMON_START + x.primary - 1} ألوان` : '🐟 ٠' })) },
     };
   },
   view(s, pid, ctx) {
@@ -341,8 +347,9 @@ export const closeCall = {
   minPlayers: 2,
   durationMs: 30000,
   tagline: 'محدش يعرف. خمّن وخلاص.',
-  howTo: 'سؤال إجابته رقم. اكتب أحسن تخمين عندك. مش لازم بالظبط، المهم تكون أقرب من الباقيين.',
-  rule: 'أبعد تخمين ياخد صفر. أقرب واحد يكسب. لو تعادل: اللي جاوب متأخر.',
+  howTo: 'اكتب أقرب رقم تتوقعه لإجابة السؤال. مش لازم بالظبط، المهم تبقى أقرب من الباقيين.',
+  rule: 'الأقرب يكسب، والأبعد ياخد صفر.',
+  details: 'لو فيه تعادل، اللي جاوب متأخر ياخد صفر.',
   setup(ctx) {
     const q = pickFresh(ctx, CLOSE_CALL);
     return { q: q.text, answer: q.answer, unit: q.unit ?? '', guesses: {}, at: {} };
@@ -358,12 +365,12 @@ export const closeCall = {
     const r = closeness(ctx.players, s.guesses, s.answer, s.at);
     const all = ctx.players.map((p) => p.id);
     return {
-      headline: r.winners.length ? `الإجابة ${fmtNum(s.answer)}! ${namesOf(ctx.players, r.winners)} كان الأقرب 📏` : `الإجابة ${fmtNum(s.answer)}! محدش خمّن. كله ياخد صفر.`,
+      headline: r.winners.length ? `الإجابة ${fmtNum(s.answer)}! الأقرب: ${namesOf(ctx.players, r.winners)} 📏` : `الإجابة ${fmtNum(s.answer)}! محدش خمّن. كله ياخد صفر.`,
       ...r,
       losers: r.winners.length ? r.losers : all,
       points: pointsFrom(r.rows, r.winners, r.winners.length ? r.losers : all),
       reveal: { label: 'الإجابة', q: s.q, value: `${fmtNum(s.answer)} ${s.unit}`.trim() },
-      table: closeTable(r.rows, (n) => `قال ${fmtNum(n)}`, (d) => `بعيد بـ${fmtNum(d)}`),
+      table: closeTable(r.rows, (n) => `إجابة: ${fmtNum(n)}`, (d) => `بعيد بـ${fmtNum(d)}`),
     };
   },
   view: (s, pid) => ({ q: s.q, unit: s.unit, mine: s.guesses[pid] ?? null, guessed: Object.keys(s.guesses) }),

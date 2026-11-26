@@ -165,7 +165,7 @@ const penaltyKicks = {
             </div>
             <div className="rounded-3xl border-4 border-black bg-white p-3 text-black">
               <div className="mb-2 flex items-center gap-2 font-display font-black text-xl">
-                🧤 هتنط فين؟ <span className="text-base">(بيشوط عليك: {P[v.shooter]?.name})</span>
+                🧤 هتنط فين؟ <span className="text-base">(اللي بيشوط عليك: {P[v.shooter]?.name})</span>
               </div>
               <DirButtons value={v.myDive} onPick={(d) => send('dive', d)} />
             </div>
@@ -178,12 +178,12 @@ const penaltyKicks = {
             const onMe = v.last.find((k) => k.keeper === me);
             return (
               <div className="flex flex-col gap-3">
-                <Prompt color={mine?.goal ? 'lime' : 'red'}>{mine?.shot ? (mine.goal ? 'جوووون! ⚽' : 'الحارس صدّها 🧤') : 'ما شوطتش!'}</Prompt>
+                <Prompt color={mine?.goal ? 'lime' : 'red'}>{mine?.shot ? (mine.goal ? 'جوووون! ⚽' : 'الحارس صدّها 🧤') : 'ما شُطتش!'}</Prompt>
                 <div className="text-center text-ink-muted">
-                  شوطت {dirName(mine?.shot)} · الحارس نط {dirName(mine?.dive)}
+                  شُطت {dirName(mine?.shot)} · {mine?.dive ? `الحارس نط ${dirName(mine.dive)}` : 'الحارس ما نطّش'}
                 </div>
                 <Prompt color={onMe?.shot && !onMe.goal ? 'lime' : 'white'} small>
-                  {!onMe?.shot ? 'اللي قصادك ما شوطش' : onMe.goal ? `${P[onMe.shooter]?.name} جاب فيك جون` : 'صدّيتها! 🧤'}
+                  {!onMe?.shot ? 'اللي قصادك ما شاطش' : onMe.goal ? `جون فيك من ${P[onMe.shooter]?.name}` : 'صدّيتها! 🧤'}
                 </Prompt>
               </div>
             );
@@ -206,7 +206,7 @@ const penaltyKicks = {
                 <Avatar p={P[k.shooter]} size={44} />
                 <span className="text-3xl">{k.goal ? '⚽' : '🧤'}</span>
                 <Avatar p={P[k.keeper]} size={44} />
-                <span className="font-display font-black">{k.goal ? 'جون!' : k.shot ? 'صدّها' : 'ما شوطش'}</span>
+                <span className="font-display font-black">{k.goal ? 'جون!' : k.shot ? 'صدّها' : 'من غير شوطة'}</span>
               </div>
             ))}
           </div>
@@ -264,7 +264,7 @@ const whoSaidIt = {
           ))}
         {v.stage === 'reveal' && (
           <Prompt color={v.mine ? 'white' : v.myGuess === v.author ? 'lime' : 'red'}>
-            {v.mine ? 'دي كانت إجابتك 😎' : `${P[v.author]?.name} هو اللي قالها${v.myGuess === v.author ? ' ✓ عرفتها!' : ''}`}
+            {v.mine ? 'دي كانت إجابتك 😎' : `دي إجابة ${P[v.author]?.name}${v.myGuess === v.author ? ' ✓ عرفتها!' : ''}`}
           </Prompt>
         )}
       </div>
@@ -282,7 +282,7 @@ const whoSaidIt = {
         {v.stage === 'reveal' && v.author && (
           <div className="flex items-center justify-center gap-4">
             <Avatar p={P[v.author]} size={90} />
-            <span className="font-display font-black text-4xl">{P[v.author]?.name} هو اللي قالها!</span>
+            <span className="font-display font-black text-4xl">دي إجابة {P[v.author]?.name}!</span>
           </div>
         )}
       </div>
