@@ -154,10 +154,52 @@ function HostMenuItems({ snap, close }) {
         </button>
       )}
       {snap.phase === 'lobby' && <Toggle on={snap.settings.locked} onChange={(v) => api.settings({ locked: v })} label={T.lockRoom} sub={T.lockRoomHint} />}
+      {snap.phase !== 'lobby' && <RemovePlayers snap={snap} />}
       {snap.phase !== 'lobby' && snap.phase !== 'ended' && <Confirm label={T.endNight} sure={T.endSure} onDo={() => (api.end(), close())} />}
       {snap.phase !== 'lobby' && <button type="button" onClick={() => (api.toLobby(), close())} className="rounded-2xl bg-white/10 px-3 py-2 text-right font-display font-black">{T.backToLobby}</button>}
       {snap.role === 'display' && <Confirm label={T.newParty} sure={T.leaveSure} onDo={() => api.leave()} />}
     </>
+  );
+}
+
+// Every player but the host, all through the round (also ones who already finished their turn).
+function RemovePlayers({ snap }) {
+  const [open, setOpen] = useState(false);
+  const [asking, setAsking] = useState(null);
+  const others = snap.players.filter((p) => p.id !== snap.hostId);
+  if (!others.length) return null;
+  const who = others.find((p) => p.id === asking);
+  return (
+    <div className="rounded-2xl bg-white/10 px-3 py-2">
+      <button type="button" onClick={() => (setOpen(!open), setAsking(null))} className="flex w-full items-center justify-between font-display font-black">
+        <span>👥 {T.removePlayers}</span>
+        <span className="text-sm text-ink-muted">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && !who && (
+        <div className="mt-2 flex flex-col gap-1">
+          <div className="text-xs text-ink-muted">{T.removePlayersHint}</div>
+          {others.map((p) => (
+            <button key={p.id} type="button" onClick={() => setAsking(p.id)} className={`flex items-center gap-2 rounded-xl bg-black/30 px-2 py-1.5 text-right ${p.connected ? '' : 'opacity-60'}`}>
+              <Avatar p={p} size={28} />
+              <span className="font-display font-black">{p.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {open && who && (
+        <div className="mt-2 rounded-xl border-2 border-red/60 bg-black/40 p-3" role="alertdialog" aria-label={T.removeAsk(who.name)}>
+          <div className="font-display font-black">{T.removeAsk(who.name)}</div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => (api.kick(who.id), setAsking(null))} className="rounded-xl bg-red px-2 py-2 font-display font-black text-white">
+              {T.removeYes}
+            </button>
+            <button type="button" onClick={() => setAsking(null)} className="rounded-xl bg-white/15 px-2 py-2 font-display font-black">
+              {T.removeNo}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

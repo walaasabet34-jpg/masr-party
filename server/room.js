@@ -142,6 +142,7 @@ export class Room {
       return;
     }
     this.players = this.players.filter((x) => x.id !== id);
+    this.dropFromRound(id);
     this.ready = this.ready.filter((x) => x !== id);
     delete this.missions[id];
     this.claims = this.claims.filter((c) => c.from !== id && c.target !== id);
@@ -173,12 +174,18 @@ export class Room {
     return by === 'display' || this.isHost(by);
   }
 
+  // a player who is gone stops counting in the running round, so it never waits on them
+  dropFromRound(id) {
+    if (this.game) this.game = { ...this.game, roster: this.game.roster.filter((p) => p.id !== id) };
+  }
+
   kick(by, id) {
     if (!this.canControl(by) || id === this.hostId) return;
     const p = this.player(id);
     if (!p) return;
     this.kicked.add(p.token);
     this.players = this.players.filter((x) => x.id !== id);
+    this.dropFromRound(id);
     this.chat.system('kicked', p);
     this.ready = this.ready.filter((x) => x !== id);
     this.touch();

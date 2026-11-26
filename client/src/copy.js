@@ -144,6 +144,11 @@ export const T = {
   skipRound: 'عدّي الجولة دي',
   skipRoundHint: 'عدّي للجولة اللي جاية من غير إضافة أو خصم نقط.',
   hostControls: 'تحكم المضيف',
+  removePlayers: 'إخراج لاعب',
+  removePlayersHint: 'دوس على اسم اللاعب',
+  removeAsk: (name) => `تخرّج ${name} من السهرة؟`,
+  removeYes: 'خروج اللاعب',
+  removeNo: 'إلغاء',
 
   // briefing
   roundN: (n) => `الجولة ${n}`,
@@ -201,7 +206,7 @@ export const T = {
   claimFrom: (name) => `مقلب من ${name} 🕶️`,
   claimQuestion: 'المقلب ده اتعمل فيك؟',
   claimStakes: (name) => `لو «أيوه»: ${name} +٢ وانت −١`,
-  yesItHappened: 'أيوه، اتعمل فيّا',
+  yesItHappened: 'أيوه، المقلب اتعمل فيّا',
   noItDidnt: 'لأ، محصلش',
 
   // end
@@ -219,7 +224,7 @@ export const T = {
     seat_taken: 'انت داخل الحفلة دي من جهاز أو تاب تاني دلوقتي.',
     room_locked: 'الأوضة مقفولة. اطلب من المضيف يفتحها.',
     room_full: 'الأوضة مليانة.',
-    kicked: 'المضيف شالك من الحفلة.',
+    kicked: 'المضيف خرّجك من السهرة.',
     host_left: 'المضيف قفل الحفلة.',
     server_error: 'حصلت مشكلة. جرّب تاني.',
   },
